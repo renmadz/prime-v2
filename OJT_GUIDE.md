@@ -1,8 +1,8 @@
 # OJT Guide — What Do I Actually Do?
 
-**For:** OJT student (3rd year, assigned to PRIME v2)  
-**Date:** 2026-06-30  
-**Written by:** Claude Code after reading the entire repository
+**For:** OJT student (3rd year, assigned to PRIME v2)
+**Last updated:** 2026-06-30
+**Written by:** Kiro after reading the entire repository
 
 ---
 
@@ -49,18 +49,16 @@ None of this exists yet. There is no `src/`, no `frontend/`, no `backend/` folde
 
 In this project, "vibe coding" means using AI to help you write documentation, prompts, and eventually code.
 
-The original guide was written for **Cursor** (an AI-powered code editor). You don't use Cursor.
+You are using **Kiro** (this AI). Same idea as Cursor, different tool.
 
-**That's fine.** You are using **Claude Code** (me). Same idea, different tool.
+Instead of writing everything manually, you describe what you need and Kiro helps you create it. For Phase 0–2, that means:
 
-Instead of Cursor prompts, you just tell me what you need and I'll help you create it. For Phase 0–2, that means:
-
-- Tell me which document to create
-- I'll draft it based on the README
+- Tell Kiro which document to create or update
+- Kiro drafts it based on the README and existing docs
 - You review it and flag anything that needs supervisor input
-- We finalize it together
+- You finalize it together
 
-**Important:** Even with AI help, you must understand every document you submit. Never hand in something you don't understand. If a sentence doesn't make sense to you, ask me to explain it.
+**Important:** Even with AI help, you must understand every document you submit. Never hand in something you don't understand. If a sentence doesn't make sense to you, ask Kiro to explain it.
 
 ---
 
@@ -70,9 +68,7 @@ Instead of Cursor prompts, you just tell me what you need and I'll help you crea
 
 *Goal: Make sure the repository is properly organized with all planning scaffolding in place.*
 
-Phase 0 is mostly already done. The repo has the folder structure, the README, the form files, and the agent docs. What's still missing are a few templates and lists.
-
-**No code. No app. Just files.**
+**Status: ✅ COMPLETE — supervisor approved on 2026-06-30.**
 
 ### Phase 1 — Understand the Business
 
@@ -80,7 +76,7 @@ Phase 0 is mostly already done. The repo has the folder structure, the README, t
 
 This is like writing a report that says: "Here is what DOST currently does manually, here is what PRIME v2 will replace, and here is who needs to approve this project."
 
-**No code. Just research and writing.**
+**Status: 🔄 IN PROGRESS — documents created, pending Business Owner approval.**
 
 ### Phase 2 — Define Exactly What to Build
 
@@ -88,13 +84,13 @@ This is like writing a report that says: "Here is what DOST currently does manua
 
 This is like writing a contract for the developers: "Build exactly these features, for exactly these roles, following exactly these rules."
 
-**No code. But every decision made here directly drives what gets coded later.**
+**Status: ⏳ NOT STARTED — cannot begin until Phase 1 is approved.**
 
 ---
 
-## Current State of the Repo (What's Done vs. Missing)
+## Current State of the Repo
 
-### Phase 0 — Almost Complete
+### Phase 0 — ✅ Complete (Supervisor Approved 2026-06-30)
 
 | Task | Status | Notes |
 |---|---|---|
@@ -104,31 +100,32 @@ This is like writing a contract for the developers: "Build exactly these feature
 | Add README | ✅ Done | 2,812-line master guide |
 | Inventory source forms | ✅ Done | 27 forms cataloged in FORM-INVENTORY.md |
 | Agent workflow docs | ✅ Done | AGENTS.md, guides, templates all exist |
-| Issue templates | ✅ Done | docs/phase-0/ISSUE-TEMPLATES.md |
-| Decision log template | ✅ Done | docs/phase-0/DECISION-LOG.md (8 decisions logged) |
-| Change request template | ✅ Done | docs/phase-0/CHANGE-REQUEST.md |
-| Initial risk register | ✅ Done | docs/phase-0/RISK-REGISTER.md (13 risks) |
-| Initial backlog | ✅ Done | docs/phase-0/INITIAL-BACKLOG.md (21 tasks) |
-| Stakeholder list | ❌ Missing | Need names from supervisor |
-| **Phase 0 approval** | ❌ Pending | Supervisor must sign off |
+| Issue templates | ✅ Done | docs/templates/ISSUE-TEMPLATES.md |
+| Decision log template | ✅ Done | docs/templates/DECISION-LOG.md |
+| Change request template | ✅ Done | docs/templates/CHANGE-REQUEST.md |
+| Initial risk register | ✅ Done | docs/requirements/RISK-REGISTER.md |
+| Initial backlog | ✅ Done | docs/requirements/INITIAL-BACKLOG.md |
+| Stakeholder list | ⚠️ Draft | docs/project-brief/STAKEHOLDERS.md — names are [TBC], pending supervisor |
+| **Phase 0 approval** | ✅ Approved | Supervisor sign-off received 2026-06-30 |
 
-### Phase 1 — Not Started
+### Phase 1 — 🔄 In Progress
+
+| Task | Status | Notes |
+|---|---|---|
+| Project Brief | ✅ Created | `docs/project-brief/PRIME-v2-Project-Brief.md` |
+| Business Process Map | ✅ Created | `docs/project-brief/PRIME-v2-Business-Process-Map.md` |
+| Risk Register | ✅ Created | `docs/project-brief/PRIME-v2-Risk-Register.md` |
+| Stakeholder interviews | ⚠️ Pending | 11 open questions in Business Process Map need confirmation |
+| **Business Owner approval** | ❌ Pending | Brief is DRAFT — needs written sign-off to close Phase 1 |
+
+### Phase 2 — ⏳ Not Started
 
 | Task | Status |
 |---|---|
-| Project Brief document | ❌ Missing |
-| Business process map (current vs proposed) | ❌ Missing |
-| Problem statement | ❌ Missing |
-| **Business owner approval** | ❌ Pending |
-
-### Phase 2 — Not Started
-
-| Task | Status |
-|---|---|
-| MVP specification document | ❌ Missing |
-| Role-permission matrix | ❌ Missing |
-| Workflow status document | ❌ Missing |
-| User story backlog | ❌ Missing |
+| MVP specification document | ❌ Not started |
+| Role-permission matrix | ❌ Not started |
+| Workflow status document | ❌ Not started |
+| User story backlog | ❌ Not started |
 | **Approval from product/security/process owner** | ❌ Pending |
 
 ---
@@ -139,163 +136,120 @@ Do these in order. Do not skip ahead.
 
 ---
 
-### STEP 1 — Read the Repo (Today, ~2–3 hours)
+### STEP 1 — Read the Repo ✅ (Should be done already)
 
-Before you create anything, you need to understand the project. Read these files in this order:
+If you haven't read these yet, do it now before anything else:
 
-1. **`README.md`** — This is the master document. 2,812 lines. Do not skip it. It contains everything: what the system does, who uses it, how the workflow goes, what the tech stack is.
-
-2. **`AGENTS.md`** — Short. Read it. This explains the "agent" system and the golden rules for the project.
-
+1. **`README.md`** — The master document. 2,812 lines. Read it fully. It contains everything: what the system does, who uses it, how the workflow goes, what the tech stack is.
+2. **`AGENTS.md`** — Short. Explains the agent system and the golden rules.
 3. **`docs/agents/PHASES-REFERENCE.md`** — Shows all 21 phases and which one you're in.
-
-4. **`docs/agents/DEVELOPMENT-FLOW.md`** — Shows the mandatory flow before any task.
-
-5. **`docs/forms/FORM-INVENTORY.md`** — Look at the 27 forms you'll eventually be working with.
-
-6. **`docs/frontend/UI-DESIGN-STANDARDS.md`** — Even if you're not doing UI now, this has a strict rule: **navigation goes on the RIGHT side, not the top**. You need to know this.
-
-**While reading, write down:**
-- Things you don't understand
-- Questions for your supervisor
-- Anything that seems unclear or missing
+4. **`docs/agents/DEVELOPMENT-FLOW.md`** — Mandatory flow before any task.
+5. **`docs/forms/FORM-INVENTORY.md`** — The 27 forms you'll eventually work with.
+6. **`docs/frontend/UI-DESIGN-STANDARDS.md`** — Has a strict rule: **navigation goes on the RIGHT side, not the top.**
 
 ---
 
-### STEP 2 — Ask Your Supervisor These Questions
+### STEP 2 — Finish Phase 1 (Current Focus)
 
-Before you create any documents, ask your supervisor:
+Phase 1 documents have been created. Two things still needed to close Phase 1:
 
-**Critical (ask first):**
-1. Who is the "Project Owner," "Business Owner," "Product Owner," and "Security Owner"? These are the people who approve Phase 0, 1, and 2. Without their names, the documents can't be finalized.
-2. Are there any stakeholders (named people) I should list?
-3. Is there a timeline or deadline for completing Phase 0–2?
-4. What platform do we use for issues? GitHub Issues, Jira, or something else?
+#### 2A — Answer the Open Questions in the Business Process Map
 
-**Important:**
-5. Is the list of 8 user roles exactly right? (Applicant, System Admin, Project Focal, RTEC Member, RTEC Head, Budget Officer, Accountant, Regional Director)
-6. Are the 27 forms in `docs/forms/FORM-INVENTORY.md` the complete and correct set?
-7. Who owns each form? (The "Owner" column in FORM-INVENTORY.md is blank.)
+Open `docs/project-brief/PRIME-v2-Business-Process-Map.md` and look for every line marked with ⚠️. These are questions that need a real answer from the Process Owner or the relevant role representative before the brief is considered complete.
 
-Write down all the answers. You'll need them for the documents.
+Key open questions include:
 
----
+- Is browser-based form editing acceptable to applicants? (Stage 1)
+- What is the required attachment list per proposal type? (Stage 2)
+- Do the three comment types (field-level, section-level, general) cover all review patterns? (Stage 3)
+- Can the Focal reject outright, or only return? (Stage 3)
+- Can the applicant revise all fields or only those referenced in comments? (Stage 4)
+- Are RTEC member comments completely private from other members? (Stage 5)
+- What is the RTEC rating or scoring structure? (Stage 5)
+- Can the RTEC Head return an individual member's review for clarification? (Stage 6)
+- Can the Focal close a proposal as "not recommended," or only the RD? (Stage 7)
+- Can Budget return directly to the Applicant, or only to the Focal? (Stage 8)
+- Can Accounting return directly to the Focal, or only to Budget? (Stage 9)
+- Can a rejected proposal be reopened, or must a new proposal be submitted? (Stage 10)
+- Which roles can view the full audit log vs. a summary status view? (Stage 11)
 
-### STEP 3 — Complete Phase 0 Missing Tasks
+**Ask your supervisor or the process owner for these answers. Record the answers in the Business Process Map — replace the ⚠️ notes with the confirmed answers.**
 
-After your supervisor meeting, create the missing Phase 0 files. Tell me "create [file]" and I'll draft it for you to review.
+#### 2B — Get Business Owner Approval
 
-**Files to create (in order):**
+Once the open questions are answered:
 
-**3A — Stakeholder List**
-- File: `docs/project-brief/STAKEHOLDERS.md`
-- Contents: Table of everyone involved — name, role, contact, what they approve
-- Needs: Supervisor-provided names from Step 2
+1. Send `docs/project-brief/PRIME-v2-Project-Brief.md` to the Business Owner for review.
+2. If they request changes, update the brief, bump the version (e.g., 0.1 → 0.2), and resubmit.
+3. Once approved, fill in the Approval section at the bottom of the brief with their name, statement of acceptance, and the date.
+4. Change the document status from `DRAFT` to `APPROVED`.
 
-**3B — Issue Templates**
-- Where: `docs/templates/ISSUE-TEMPLATES.md` (since you probably don't use GitHub Issues workflow yet)
-- Contents: Bug report template, documentation task template, phase gate review template
-
-**3C — Decision Log Template**
-- File: `docs/templates/DECISION-LOG.md`
-- Contents: Table for recording decisions — date, decision made, reason, who approved
-
-**3D — Change Request Template**
-- File: `docs/templates/CHANGE-REQUEST.md`
-- Contents: Form for requesting changes to scope or requirements
-
-**3E — Initial Risk Register**
-- File: `docs/requirements/RISK-REGISTER.md`
-- Contents: Table of project risks — already identified in README.md §35, just needs formatting and owners
-
-**3F — Initial Backlog**
-- File: `docs/requirements/INITIAL-BACKLOG.md`
-- Contents: Prioritized list of documentation tasks only (no coding tasks yet)
-
-Once all six are created → **ask supervisor to confirm Phase 0 is complete.**
+**Phase 1 is closed when the Approval section is filled in.**
 
 ---
 
-### STEP 4 — Create Phase 1 Documents
+### STEP 3 — Start Phase 2 (After Phase 1 Approval)
 
-Phase 1 = writing the Project Brief. Most of the content already exists inside README.md — you're just extracting, organizing, and putting it in the right format for business-owner approval.
+Phase 2 = locking down exactly what to build. All the information already exists in README.md. You're extracting it into proper standalone documents.
 
-**What to create:**
+**Create these in order:**
 
-**4A — Project Brief**
-- File: `docs/project-brief/PRIME-v2-Project-Brief.md`
-- Contents:
-  - Problem statement (why the manual process is broken)
-  - Proposed solution (what PRIME v2 will do)
-  - Stakeholder matrix (link to STAKEHOLDERS.md)
-  - Current process vs proposed process (simple flow diagram)
-  - Assumptions (what we're assuming is true)
-  - Constraints (limits we must follow)
-  - Success criteria (how we know the project succeeded)
-
-Most content comes from `README.md` §3, §4, §5, §10. I'll help you draft this — just say "draft the Project Brief."
-
-Once drafted → **supervisor (business owner) must approve it before Phase 2 starts.**
-
----
-
-### STEP 5 — Create Phase 2 Documents
-
-Phase 2 = locking down exactly what to build. Again, all the information already exists in README.md. You're extracting it into proper standalone documents.
-
-**What to create (do these in order):**
-
-**5A — MVP Specification**
+#### 3A — MVP Specification
 - File: `docs/requirements/PRIME-v2-MVP.md`
-- Contents: The 20-step scenario from README.md §16 formatted as a checklist, plus what's in-scope and out-of-scope
-- Source: `README.md` §6 (scope) and §16 (MVP definition)
+- Contents: The 20-step scenario from README.md §16 formatted as a checklist, plus in-scope and out-of-scope items
+- Source: `README.md` §6 and §16
+- Say to Kiro: "Draft the MVP specification for PRIME v2."
 
-**5B — Roles and Permissions Matrix**
+#### 3B — Roles and Permissions Matrix
 - File: `docs/requirements/PRIME-v2-Roles-and-Permissions.md`
 - Contents: Table showing which role can do what (view, edit, submit, comment, return, approve, etc.)
-- Source: `README.md` §7 (auth rules) and §8 (user roles)
-- Note: This needs security owner approval — it controls who can access what
+- Source: `README.md` §7 and §8
+- **Needs security owner approval** — it controls who can access what
+- Say to Kiro: "Draft the roles and permissions matrix for PRIME v2."
 
-**5C — Workflow Document**
+#### 3C — Workflow Document
 - File: `docs/workflows/PRIME-v2-Workflow.md`
-- Contents: All 24 proposal statuses, who triggers each transition, allowed paths
-- Source: `README.md` §10 (workflow) and §11 (proposal statuses)
+- Contents: All 24 proposal statuses, who triggers each transition, and the allowed paths
+- Source: `README.md` §10 and §11
+- Say to Kiro: "Draft the workflow document for PRIME v2."
 
-**5D — User Story Backlog**
+#### 3D — User Story Backlog
 - File: `docs/requirements/USER-STORY-BACKLOG.md`
 - Contents: All user stories from README.md §17 in table format with IDs and acceptance criteria
 - Source: `README.md` §17 (already has ~30+ user stories written)
+- Say to Kiro: "Draft the user story backlog for PRIME v2."
 
-Once all created → **three approvals needed: product owner (MVP), security owner (permissions), process owner (workflow).**
+#### 3E — Get Phase 2 Approvals
 
----
+Three approvals needed:
+- Product owner approves the MVP specification
+- Security owner approves the role-permission matrix
+- Process owner approves the workflow document
 
-### STEP 6 — Get All Approvals
-
-Collect sign-offs for Phase 0, 1, and 2. These can be simple email confirmations or signed documents depending on what your supervisor prefers.
-
-- [ ] Phase 0: Project owner confirms name, scope, stakeholders
-- [ ] Phase 1: Business owner approves Project Brief
-- [ ] Phase 2: Product owner approves MVP
-- [ ] Phase 2: Security owner approves role-permission matrix
-- [ ] Phase 2: Process owner approves workflow document
-
-**Only after all approvals → you can move to Phase 3 (form conversion specs) and eventually Phase 4 (architecture), which gates Phase 6 (first real code).**
+**Phase 2 is closed when all three approvals are recorded.**
 
 ---
 
-## How to Work With Me (Claude Code)
+### STEP 4 — After Phase 2 (Future)
 
-Since you don't use Cursor, here's how we work together:
+After Phase 2 you move to Phase 3 (form conversion specs) and Phase 4 (architecture). Coding starts only after Phase 4 is approved.
+
+| Phase | What it is | Code? |
+|---|---|---|
+| 3 | Analyze and spec the 27 forms | No |
+| 4 | Design the architecture | No |
+| 5 | Prototype the UI | Mockups only |
+| **6+** | **Actually build it** | **Yes** |
+
+---
+
+## How to Work With Kiro
 
 **To draft a document:**
-> "Draft the Project Brief for PRIME v2."
+> "Draft the MVP specification for PRIME v2."
 
-**To review a section of README:**
-> "Explain what README section 10 says about the workflow in simple terms."
-
-**To create a specific file:**
-> "Create STAKEHOLDERS.md using the template from the PHASE_0_1_2_WORKPLAN.md."
+**To update a document:**
+> "Update the Business Process Map to answer the open RTEC questions."
 
 **To check something:**
 > "Read FORM-INVENTORY.md and tell me if anything is missing."
@@ -303,7 +257,10 @@ Since you don't use Cursor, here's how we work together:
 **To understand a concept:**
 > "What is MinIO and why does PRIME v2 use it?"
 
-I will not write application code until Phase 4 is approved. If you ask me to write React or Fastify code before then, I'll remind you of this rule. That is the right thing to do — not a limitation.
+**To check current status:**
+> "What still needs to be done to finish Phase 1?"
+
+Kiro will not write application code until Phase 4 is approved. If you ask for React or Fastify code before then, it'll remind you of this rule.
 
 ---
 
@@ -311,29 +268,31 @@ I will not write application code until Phase 4 is approved. If you ask me to wr
 
 ```
 prime-v2/
-├── OJT_GUIDE.md                         ← this file
-├── README.md                            ← master SDLC guide (do not modify)
-├── AGENTS.md                            ← agent routing (do not modify)
+├── OJT_GUIDE.md                              ← this file
+├── README.md                                 ← master SDLC guide (do not modify)
+├── AGENTS.md                                 ← agent routing (do not modify)
 │
 └── docs/
     ├── project-brief/
-    │   ├── STAKEHOLDERS.md              ← Step 3A (create with supervisor input)
-    │   └── PRIME-v2-Project-Brief.md    ← Step 4A (create after stakeholders)
+    │   ├── STAKEHOLDERS.md                   ← Draft (names TBC)
+    │   ├── PRIME-v2-Project-Brief.md         ← ✅ Created — needs approval
+    │   ├── PRIME-v2-Business-Process-Map.md  ← ✅ Created — needs interview answers
+    │   └── PRIME-v2-Risk-Register.md         ← ✅ Created
     │
     ├── requirements/
-    │   ├── RISK-REGISTER.md             ← Step 3E
-    │   ├── INITIAL-BACKLOG.md           ← Step 3F
-    │   ├── PRIME-v2-MVP.md              ← Step 5A
-    │   ├── PRIME-v2-Roles-and-Permissions.md ← Step 5B
-    │   └── USER-STORY-BACKLOG.md        ← Step 5D
+    │   ├── RISK-REGISTER.md                  ← ✅ Done (Phase 0)
+    │   ├── INITIAL-BACKLOG.md                ← ✅ Done (Phase 0)
+    │   ├── PRIME-v2-MVP.md                   ← ❌ Phase 2
+    │   ├── PRIME-v2-Roles-and-Permissions.md ← ❌ Phase 2
+    │   └── USER-STORY-BACKLOG.md             ← ❌ Phase 2
     │
     ├── workflows/
-    │   └── PRIME-v2-Workflow.md         ← Step 5C
+    │   └── PRIME-v2-Workflow.md              ← ❌ Phase 2
     │
     └── templates/
-        ├── ISSUE-TEMPLATES.md           ← Step 3B
-        ├── DECISION-LOG.md              ← Step 3C
-        └── CHANGE-REQUEST.md            ← Step 3D
+        ├── ISSUE-TEMPLATES.md                ← ✅ Done
+        ├── DECISION-LOG.md                   ← ✅ Done
+        └── CHANGE-REQUEST.md                 ← ✅ Done
 ```
 
 ---
@@ -342,23 +301,18 @@ prime-v2/
 
 These come directly from the project's official documents.
 
-1. **No code until Phase 4 is approved.** Not even a `hello world`. The README says it, the PHASES-REFERENCE says it, the INTERN-VIBE-CODING-GUIDE says it. This is a hard rule.
-
-2. **One document at a time.** Don't try to create everything in one session. Finish, review, and confirm each document before moving to the next.
-
-3. **Never invent business rules.** If you don't know something (who a stakeholder is, what a return path is), write "Requires confirmation from supervisor" and ask. Don't guess.
-
-4. **Keep commits small.** After creating each document, make a git commit. Don't batch everything into one giant commit.
-
-5. **Understand what you submit.** AI can draft documents, but you are responsible for what's in them. If a sentence doesn't make sense to you, fix it before submitting.
-
-6. **Right-side navigation.** When Phase 6 coding eventually starts, all UI navigation goes on the RIGHT side of the screen. Not top. This is a non-negotiable design rule from `docs/frontend/UI-DESIGN-STANDARDS.md`.
+1. **No code until Phase 4 is approved.** Not even a `hello world`. Hard rule — no exceptions.
+2. **One document at a time.** Finish, review, and confirm each document before moving to the next.
+3. **Never invent business rules.** If you don't know something, write "Requires confirmation" and ask. Don't guess.
+4. **Keep commits small.** After creating each document, make a git commit. Don't batch everything.
+5. **Understand what you submit.** AI can draft documents, but you are responsible for their content.
+6. **Right-side navigation.** When Phase 6 coding starts, all UI navigation goes on the RIGHT side. Not top. Non-negotiable.
 
 ---
 
 ## What You Are NOT Doing Yet
 
-To be completely clear, here is what Phase 0–2 does NOT include:
+To be completely clear, Phase 0–2 does NOT include:
 
 - ❌ Writing any React, TypeScript, or JavaScript
 - ❌ Setting up a database
@@ -374,17 +328,17 @@ All of that starts at Phase 6, which requires Phase 4 (architecture) approval fi
 
 ## One-Page Summary
 
-| Phase | What it is | Code? | Main output | Who approves |
-|---|---|---|---|---|
-| 0 | Set up project structure & templates | No | Stakeholder list, risk register, templates | Project owner |
-| 1 | Understand and document the business | No | Project Brief | Business owner |
-| 2 | Define what to build and who can do what | No | MVP spec, permissions, workflow, user stories | Product + Security + Process owner |
-| 3 | Analyze and spec the 27 forms | No | Form specs (one per form) | Form owners |
-| 4 | Design the architecture | No | Architecture doc, ERD, security plan | Architect + Security |
-| 5 | Prototype the UI | Mockups only | Wireframes | Users |
-| **6+** | **Actually build it** | **Yes** | Working code | QA gate + supervisor |
+| Phase | What it is | Code? | Main output | Who approves | Status |
+|---|---|---|---|---|---|
+| 0 | Set up project structure & templates | No | Stakeholder list, risk register, templates | Project owner | ✅ Done |
+| 1 | Understand and document the business | No | Project Brief | Business owner | 🔄 In progress |
+| 2 | Define what to build and who can do what | No | MVP spec, permissions, workflow, user stories | Product + Security + Process owner | ⏳ Not started |
+| 3 | Analyze and spec the 27 forms | No | Form specs (one per form) | Form owners | ⏳ Not started |
+| 4 | Design the architecture | No | Architecture doc, ERD, security plan | Architect + Security | ⏳ Not started |
+| 5 | Prototype the UI | Mockups only | Wireframes | Users | ⏳ Not started |
+| **6+** | **Actually build it** | **Yes** | Working code | QA gate + supervisor | ⏳ Not started |
 
-You are here: **Phase 0 → Phase 2**
+**You are here: Phase 1 (in progress) → Phase 2 (next)**
 
 ---
 
@@ -392,8 +346,10 @@ You are here: **Phase 0 → Phase 2**
 
 If you just opened this file and want to know what to do in the next 30 minutes:
 
-1. Open `README.md` and read sections 1 through 10.
-2. Come back here.
-3. Ask me: "Draft STAKEHOLDERS.md so I can show it to my supervisor and fill in the names."
+1. Open `docs/project-brief/PRIME-v2-Business-Process-Map.md`
+2. Find every line with a ⚠️ symbol
+3. Write down those questions
+4. Ask your supervisor or process owner for the answers
+5. Come back and say: "Update the Business Process Map with these answers: [your answers]"
 
-That's step one.
+That's the current step.

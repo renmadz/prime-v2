@@ -63,7 +63,9 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 0 → moving to Phase 1**
+**You are here: Phase 1 — Business Analysis and Project Brief**
+
+Phase 0 has been approved by the supervisor. Phase 1 is now in progress.
 
 | Phase 0 item | Status |
 |---|---|
@@ -76,12 +78,26 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 | Issue templates | Not started |
 | Decision-log template | Not started |
 | Change-request template | Not started |
-| Stakeholder list | Not started |
-| Initial risk register | Not started |
+| Stakeholder list | Draft (names TBC — pending supervisor confirmation) |
+| Initial risk register | Draft (see docs/project-brief/PRIME-v2-Risk-Register.md) |
 | Initial backlog | Not started |
-| Phase 0 approval gate | Pending |
+| Phase 0 approval gate | **Approved (supervisor verbal confirmation)** |
 
-**Next:** Complete remaining Phase 0 items, get project owner sign-off, then start **Phase 1**.
+| Phase 1 item | Status |
+|---|---|
+| Project Brief | Draft — `docs/project-brief/PRIME-v2-Project-Brief.md` |
+| Business Process Map | Draft — `docs/project-brief/PRIME-v2-Business-Process-Map.md` |
+| Problem statement | Included in Project Brief §3 |
+| Objectives | Included in Project Brief §5 |
+| Scope (in/out) | Included in Project Brief §6 |
+| Assumptions | Included in Project Brief §8 |
+| Constraints | Included in Project Brief §9 |
+| Stakeholder matrix | Included in Project Brief §10; detail in STAKEHOLDERS.md |
+| Risk register | Draft — `docs/project-brief/PRIME-v2-Risk-Register.md` |
+| Kiro spec (requirements.md) | Created — `.kiro/specs/phase-1-project-brief/requirements.md` |
+| Phase 1 approval gate | **Pending — Business Owner must approve Project Brief** |
+
+**Next:** Present Project Brief to Business Owner for review and approval. Conduct stakeholder interviews to fill TBC fields. After Business Owner approval, start **Phase 2**.
 
 ## One Rule
 
