@@ -55,15 +55,19 @@ primev2/
 
 ## Current Status
 
-- **Phase:** 0 — Project Initialization
+- **Phase:** 2 — MVP, Roles, and User Stories (documents complete, pending approvals)
+- **Phase 0:** ✅ Approved (supervisor 2026-06-30)
+- **Phase 1:** 🔄 Documents created — pending Business Owner sign-off
+- **Phase 2:** 🔄 Documents created — pending Product Owner, Security Owner, Process Owner sign-off
 - **Coding:** Not started (awaiting MVP and architecture approval)
 - **Forms:** 27 source files inventoried in `docs/forms/`
 
-## Next Steps (from README §38)
+## Next Steps
 
-1. Complete form inventory review
-2. Approve Project Brief
-3. Approve MVP and role-permission matrix
-4. Approve workflow
-5. Approve architecture
-6. Begin development only after all approvals
+1. Get Business Owner written approval on Project Brief → closes Phase 1
+2. Get Product Owner written approval on MVP spec → contributes to Phase 2 gate
+3. Get Security Owner written approval on Roles and Permissions → contributes to Phase 2 gate
+4. Get Process Owner written approval on Workflow → closes Phase 2 gate
+5. Begin Phase 3 (Form Conversion Specifications) only after Phase 2 gate is closed
+6. Approve architecture in Phase 4
+7. Begin development only after Phase 4 approval

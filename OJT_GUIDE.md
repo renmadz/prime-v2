@@ -337,8 +337,8 @@ All of that starts at Phase 6, which requires Phase 4 (architecture) approval fi
 | Phase | What it is | Code? | Main output | Who approves | Status |
 |---|---|---|---|---|---|
 | 0 | Set up project structure & templates | No | Stakeholder list, risk register, templates | Project owner | ✅ Done |
-| 1 | Understand and document the business | No | Project Brief | Business owner | 🔄 In progress |
-| 2 | Define what to build and who can do what | No | MVP spec, permissions, workflow, user stories | Product + Security + Process owner | 🔄 In progress |
+| 1 | Understand and document the business | No | Project Brief | Business owner | 🔄 Documents created — pending Business Owner approval |
+| 2 | Define what to build and who can do what | No | MVP spec, permissions, workflow, user stories | Product + Security + Process owner | 🔄 Documents created — pending 3 approvals |
 | 3 | Analyze and spec the 27 forms | No | Form specs (one per form) | Form owners | ⏳ Not started |
 | 4 | Design the architecture | No | Architecture doc, ERD, security plan | Architect + Security | ⏳ Not started |
 | 5 | Prototype the UI | Mockups only | Wireframes | Users | ⏳ Not started |
@@ -350,20 +350,25 @@ All of that starts at Phase 6, which requires Phase 4 (architecture) approval fi
 
 ## Start Here Right Now
 
-If you just opened this file and want to know what to do in the next 30 minutes:
+**What to do today (in order):**
 
-**Phase 1 still needs Business Owner sign-off:**
+**1. Get stakeholder names from your supervisor**
+Go to `docs/project-brief/STAKEHOLDERS.md` and `docs/project-brief/PRIME-v2-Project-Brief.md` §10.
+Fill in every [TBC] field with real names. These are needed before Phase 1 can formally close.
 
-1. Open `docs/project-brief/PRIME-v2-Business-Process-Map.md`
-2. Find every line with a ⚠️ symbol — these need answers from the process owner
-3. Write down those questions and ask your supervisor
-4. Once answered, say to Kiro: "Update the Business Process Map with these answers: [your answers]"
-5. Then send the Project Brief to the Business Owner for formal approval
+**2. Submit Phase 1 for approval**
+Send `docs/project-brief/PRIME-v2-Project-Brief.md` to the Business Owner.
+When they approve, fill in the Approval section (§12) with their name, date, and "APPROVED".
 
-**Phase 2 documents are created and waiting for approval:**
+**3. Submit Phase 2 for approval (all three)**
+- Send `docs/requirements/PRIME-v2-MVP.md` → Product Owner
+- Send `docs/requirements/PRIME-v2-Roles-and-Permissions.md` → Security Owner
+- Send `docs/workflows/PRIME-v2-Workflow.md` → Process Owner
 
-1. Open `docs/requirements/PRIME-v2-MVP.md` — send to Product Owner for review
-2. Open `docs/requirements/PRIME-v2-Roles-and-Permissions.md` — send to Security Owner for review
-3. Open `docs/workflows/PRIME-v2-Workflow.md` — send to Process Owner for review
+**4. When all three Phase 2 approvals are received:**
+- Fill in the Approval section of each document
+- Phase 2 gate is closed
+- Phase 3 (Form Conversion Specs) can begin
 
-Once all three approvals are recorded, Phase 2 is closed and Phase 3 (form conversion specs) can begin.
+**5. Use the Phase 2 Approval Package**
+See `docs/templates/PHASE-2-APPROVAL-PACKAGE.md` for the ready-to-send review summary.

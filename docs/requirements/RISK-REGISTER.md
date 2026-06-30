@@ -1,3 +1,8 @@
+> ⚠️ SUPERSEDED — This is the Phase 0 draft risk register.
+> The current authoritative risk register is:
+> `docs/project-brief/PRIME-v2-Risk-Register.md` (Phase 1, v0.1, 15 risks, fully detailed)
+> Do not update this file. Update the Phase 1 version instead.
+
 # Risk Register — PRIME v2
 
 **Source:** README.md §35  

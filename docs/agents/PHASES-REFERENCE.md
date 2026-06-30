@@ -63,7 +63,7 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 1 — Business Analysis and Project Brief**
+**You are here: Phase 2 — MVP, Roles, and User Stories (documents complete, approvals pending)**
 
 Phase 0 has been approved by the supervisor. Phase 1 is now in progress.
 
@@ -75,18 +75,18 @@ Phase 0 has been approved by the supervisor. Phase 1 is now in progress.
 | FORM-INVENTORY.md | Done |
 | Agent workflow (AGENTS.md, hooks, rules) | Done |
 | UI design standards | Done |
-| Issue templates | Not started |
-| Decision-log template | Not started |
-| Change-request template | Not started |
+| Issue templates | Done (docs/templates/issue-template.md created 2026-06-30) |
+| Decision-log template | Done (docs/templates/DECISION-LOG.md created 2026-06-30) |
+| Change-request template | Done (docs/templates/CHANGE-REQUEST.md created 2026-06-30) |
 | Stakeholder list | Draft (names TBC — pending supervisor confirmation) |
 | Initial risk register | Draft (see docs/project-brief/PRIME-v2-Risk-Register.md) |
-| Initial backlog | Not started |
+| Initial backlog | Done (docs/requirements/INITIAL-BACKLOG.md created 2026-06-30) |
 | Phase 0 approval gate | **Approved (supervisor verbal confirmation)** |
 
 | Phase 1 item | Status |
 |---|---|
-| Project Brief | Draft — `docs/project-brief/PRIME-v2-Project-Brief.md` |
-| Business Process Map | Draft — `docs/project-brief/PRIME-v2-Business-Process-Map.md` |
+| Project Brief | Created and submitted — `docs/project-brief/PRIME-v2-Project-Brief.md` v0.1 — pending Business Owner approval |
+| Business Process Map | Confirmed — `docs/project-brief/PRIME-v2-Business-Process-Map.md` v0.2 — all questions answered 2026-06-30 |
 | Problem statement | Included in Project Brief §3 |
 | Objectives | Included in Project Brief §5 |
 | Scope (in/out) | Included in Project Brief §6 |
@@ -95,9 +95,22 @@ Phase 0 has been approved by the supervisor. Phase 1 is now in progress.
 | Stakeholder matrix | Included in Project Brief §10; detail in STAKEHOLDERS.md |
 | Risk register | Draft — `docs/project-brief/PRIME-v2-Risk-Register.md` |
 | Kiro spec (requirements.md) | Created — `.kiro/specs/phase-1-project-brief/requirements.md` |
-| Phase 1 approval gate | **Pending — Business Owner must approve Project Brief** |
+| Phase 1 approval gate | **Pending — Business Owner written sign-off required** |
 
-**Next:** Present Project Brief to Business Owner for review and approval. Conduct stakeholder interviews to fill TBC fields. After Business Owner approval, start **Phase 2**.
+| Phase 2 item | Status |
+|---|---|
+| MVP specification | ✅ Created — `docs/requirements/PRIME-v2-MVP.md` v1.0 DRAFT |
+| Roles and permissions matrix | ✅ Created — `docs/requirements/PRIME-v2-Roles-and-Permissions.md` v1.0 DRAFT |
+| Workflow statuses document | ✅ Created — `docs/workflows/PRIME-v2-Workflow.md` v1.0 DRAFT |
+| User story backlog | ✅ Created — `docs/requirements/USER-STORY-BACKLOG.md` v1.0 DRAFT |
+| Definition of Ready | ✅ Included in PRIME-v2-MVP.md §6 |
+| Definition of Done | ✅ Included in PRIME-v2-MVP.md §7 |
+| Product Owner approves MVP | ❌ Pending written sign-off |
+| Security Owner approves permissions | ❌ Pending written sign-off |
+| Process Owner approves workflow | ❌ Pending written sign-off |
+| Phase 2 approval gate | ❌ Pending — all three approvals required |
+
+**Next:** Obtain three approvals to close Phase 2. After Phase 2 gate, begin Phase 3 (Form Conversion Specifications).
 
 ## One Rule
 
