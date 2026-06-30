@@ -94,7 +94,7 @@ This is like writing a contract for the developers: "Build exactly these feature
 
 ## Current State of the Repo (What's Done vs. Missing)
 
-### Phase 0 — Mostly Done
+### Phase 0 — Almost Complete
 
 | Task | Status | Notes |
 |---|---|---|
@@ -104,12 +104,12 @@ This is like writing a contract for the developers: "Build exactly these feature
 | Add README | ✅ Done | 2,812-line master guide |
 | Inventory source forms | ✅ Done | 27 forms cataloged in FORM-INVENTORY.md |
 | Agent workflow docs | ✅ Done | AGENTS.md, guides, templates all exist |
-| Issue templates | ❌ Missing | Need to create |
-| Decision log template | ❌ Missing | Need to create |
-| Change request template | ❌ Missing | Need to create |
+| Issue templates | ✅ Done | docs/phase-0/ISSUE-TEMPLATES.md |
+| Decision log template | ✅ Done | docs/phase-0/DECISION-LOG.md (8 decisions logged) |
+| Change request template | ✅ Done | docs/phase-0/CHANGE-REQUEST.md |
+| Initial risk register | ✅ Done | docs/phase-0/RISK-REGISTER.md (13 risks) |
+| Initial backlog | ✅ Done | docs/phase-0/INITIAL-BACKLOG.md (21 tasks) |
 | Stakeholder list | ❌ Missing | Need names from supervisor |
-| Initial risk register | ❌ Missing | Need to create |
-| Initial backlog | ❌ Missing | Need to create |
 | **Phase 0 approval** | ❌ Pending | Supervisor must sign off |
 
 ### Phase 1 — Not Started
