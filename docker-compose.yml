@@ -1,0 +1,131 @@
+services:
+
+  # ─────────────────────────────────────────────────────────
+  # prime-frontend — React + Vite SPA (served as static files)
+  # ─────────────────────────────────────────────────────────
+  prime-frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: prime-frontend
+    restart: unless-stopped
+    networks:
+      - prime-internal
+    depends_on:
+      - prime-backend
+    labels:
+      - "traefik.enable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────
+  # prime-backend — Fastify + TypeScript API
+  # ─────────────────────────────────────────────────────────
+  prime-backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: prime-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      MINIO_ENDPOINT: prime-minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      API_URL: ${API_URL}
+    networks:
+      - prime-internal
+    depends_on:
+      prime-postgres:
+        condition: service_healthy
+      prime-minio:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ─────────────────────────────────────────────────────────
+  # prime-postgres — PostgreSQL 16
+  # NOT exposed outside the Docker network
+  # ─────────────────────────────────────────────────────────
+  prime-postgres:
+    image: postgres:16-alpine
+    container_name: prime-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-primev2}
+      POSTGRES_USER: ${POSTGRES_USER:-primev2_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - prime-postgres-data:/var/lib/postgresql/data
+    networks:
+      - prime-internal
+    # No ports exposed — internal only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-primev2_user} -d ${POSTGRES_DB:-primev2}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────
+  # prime-minio — MinIO object storage
+  # NOT exposed outside the Docker network
+  # Console port (9001) is internal only — do not expose to public
+  # ─────────────────────────────────────────────────────────
+  prime-minio:
+    image: minio/minio:latest
+    container_name: prime-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - prime-minio-data:/data
+    networks:
+      - prime-internal
+    # No ports exposed — internal only
+    # backend connects via http://prime-minio:9000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ─────────────────────────────────────────────────────────
+# Named volumes — persistent data survives container restarts
+# ─────────────────────────────────────────────────────────
+volumes:
+  prime-postgres-data:
+    driver: local
+  prime-minio-data:
+    driver: local
+
+# ─────────────────────────────────────────────────────────
+# Internal network — services communicate by service name
+# Not reachable from outside the Docker host
+# ─────────────────────────────────────────────────────────
+networks:
+  prime-internal:
+    driver: bridge

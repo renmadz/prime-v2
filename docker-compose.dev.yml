@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────
+# docker-compose.dev.yml — Local development overrides
+#
+# Use this on top of docker-compose.yml for local work only.
+# This file MUST NOT be used in staging or production.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# This file exposes database and MinIO ports locally so developers
+# can connect with pgAdmin, DBeaver, or the MinIO console browser UI.
+# ─────────────────────────────────────────────────────────
+
+services:
+
+  prime-postgres:
+    ports:
+      - "5432:5432"
+    # Accessible at localhost:5432 in dev only
+
+  prime-minio:
+    ports:
+      - "9000:9000"   # MinIO S3 API
+      - "9001:9001"   # MinIO console UI — http://localhost:9001
+    # Access the console at http://localhost:9001
+    # Log in with MINIO_ACCESS_KEY / MINIO_SECRET_KEY from .env
+
+  prime-backend:
+    # In dev, rebuild on source changes via a watcher (e.g. ts-node-dev)
+    # The command override below assumes a dev start script is defined
+    # in apps/backend/package.json as "dev"
+    command: npm run dev
+    volumes:
+      - ./apps/backend/src:/app/src:ro
+    environment:
+      NODE_ENV: development
