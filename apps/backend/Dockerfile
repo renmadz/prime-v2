@@ -13,8 +13,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install dependencies (including devDependencies for tsc)
+# package.json's postinstall runs `prisma generate`, which needs the schema
+# file present at npm-ci time — copy it alongside package*.json before
+# installing (including devDependencies for tsc).
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm ci --frozen-lockfile
 
 # Copy source and compile
@@ -29,8 +32,10 @@ WORKDIR /app
 # Create a non-root user for runtime security
 RUN addgroup -S prime && adduser -S prime -G prime
 
-# Copy production dependencies only
+# Copy production dependencies only. Schema copied first so postinstall's
+# `prisma generate` can produce the runtime client this stage needs.
 COPY package*.json ./
+COPY prisma ./prisma
 RUN npm ci --frozen-lockfile --omit=dev
 
 # Copy compiled output from builder

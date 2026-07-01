@@ -7,29 +7,38 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
+    "@fastify/cookie": "^9.4.0",
     "@fastify/cors": "^9.0.1",
     "@fastify/env": "^4.4.0",
     "@fastify/helmet": "^11.1.1",
-    "@fastify/oauth2": "^8.2.0",
-    "@fastify/rate-limit": "^11.1.0",
-    "@fastify/session": "^11.1.1",
-    "@prisma/client": "^6.19.3",
+    "@fastify/oauth2": "^7.9.0",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/session": "^10.9.0",
+    "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",
     "fastify": "^4.28.1",
+    "pg": "^8.22.0",
     "pino": "^9.4.0",
-    "prisma": "^6.19.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/node": "^22.7.4",
+    "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "^2.1.1",
+    "prisma": "6.19.3",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
     "vitest": "^2.1.1"

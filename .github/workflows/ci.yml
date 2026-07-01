@@ -3,12 +3,33 @@ on: [push, pull_request]
 jobs:
   test-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: primev2_user
+          POSTGRES_PASSWORD: devpassword123
+          POSTGRES_DB: primev2_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U primev2_user -d primev2_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://primev2_user:devpassword123@localhost:5433/primev2_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: cd apps/backend && npm ci && npx tsc --noEmit && npm run test -- --run
+      - run: cd apps/backend && npm ci
+      - run: cd apps/backend && npx prisma db push
+        env:
+          DATABASE_URL: postgresql://primev2_user:devpassword123@localhost:5433/primev2_test
+      - run: cd apps/backend && npx tsc --noEmit
+      - run: cd apps/backend && npm run test -- --run
   test-frontend:
     runs-on: ubuntu-latest
     steps:
