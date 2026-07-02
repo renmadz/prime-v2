@@ -394,4 +394,29 @@ export default async function authRoutes(fastify: FastifyInstance) {
       });
     },
   );
+
+  // ── Dev/test-only: applicant session bootstrap ─────────────────
+  // This endpoint exists ONLY in non-production environments. It lets
+  // integration tests create an authenticated applicant session without
+  // going through the real Google OAuth flow.
+  if (fastify.config.NODE_ENV !== "production") {
+    const testApplicantLoginSchema = z.object({ userId: z.string().uuid() });
+
+    fastify.post("/api/auth/test-applicant-login", async (request, reply) => {
+      const body = testApplicantLoginSchema.parse(request.body);
+      const user = await prisma.user.findUnique({
+        where: { id: body.userId },
+        include: { userRoles: { include: { role: true } } },
+      });
+      if (!user || !user.isActive) {
+        return reply.status(404).send({ error: "Not Found", statusCode: 404 });
+      }
+      const roles = user.userRoles.map((ur) => ur.role.code);
+      if (!roles.includes("APPLICANT")) {
+        return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+      }
+      issueApplicantSession(request.session as never, user);
+      return reply.status(200).send({ status: "ok" });
+    });
+  }
 }

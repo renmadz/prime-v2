@@ -14,6 +14,7 @@ import authRoutes, { SESSION_COOKIE_NAME } from "./routes/auth.js";
 import usersRoutes from "./routes/users.js";
 import proposalTypesRoutes from "./routes/proposalTypes.js";
 import formTemplatesRoutes from "./routes/formTemplates.js";
+import proposalsRoutes from "./routes/proposals.js";
 import { logger, setLogLevel } from "./utils/logger.js";
 
 const SESSION_SLIDING_MAX_AGE_MS = 30 * 60 * 1000;
@@ -88,6 +89,7 @@ export async function buildApp() {
   await app.register(usersRoutes);
   await app.register(proposalTypesRoutes);
   await app.register(formTemplatesRoutes);
+  await app.register(proposalsRoutes);
 
   // 8. Error handlers
   app.setErrorHandler((error, _request, reply) => {
