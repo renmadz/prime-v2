@@ -95,6 +95,7 @@ async function createNonAdminSession(app: FastifyInstance, email: string) {
 const TEST_EMAILS = [
   "admin-form-01@test.local",
   "admin-form-02@test.local",
+  "admin-form-02b@test.local",
   "admin-form-03@test.local",
   "focal-form-04@test.local",
 ];
@@ -282,6 +283,18 @@ describe("Form Templates routes", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/form-templates/00000000-0000-0000-0000-000000000000/versions/current",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("TC-FORM-02b: GET /versions/:versionId returns 404 when version does not belong to template", async () => {
+    const adminCookie = await createAdminSession(app, "admin-form-02b@test.local");
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/form-templates/00000000-0000-0000-0000-000000000000/versions/${seededVersionId}`,
       headers: { cookie: adminCookie },
     });
 
