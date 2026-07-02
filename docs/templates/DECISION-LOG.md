@@ -38,6 +38,7 @@ Status values: `Proposed` · `Accepted` · `Deprecated` · `Superseded by DL-NNN
 | DL-016 | 2026-07-01 | 4 | Phase 4 approval gates formally waived by supervisor | Named approvers not yet assigned (DL-015); supervisor authorised Phase 6 to proceed without blocking on named sign-offs | Supervisor | Accepted |
 | DL-017 | 2026-07-01 | 6 | ORM: Prisma selected over Drizzle | Supervisor decision; Prisma chosen for its type-safe client, migration tooling, and broader community docs | Supervisor | Accepted |
 | DL-018 | 2026-07-01 | 6 | Security Plan §12 infrastructure checklist items are pending — not yet completed on Coolify server | Supervisor confirmed items (MinIO bucket ACL, PostgreSQL dedicated user, session secret) will be completed before any auth implementation begins | Supervisor | Accepted |
+| DL-019 | 2026-07-02 | 9 | Phase 9 gate closed; sequential test execution (`vitest --run --no-file-parallelism`) adopted as interim mitigation for known parallel-mode DB collision (ticketed as RISK-16 for Phase 15) | Supervisor sign-off on teardown fix (auth.test.ts/users.test.ts) and 65/65 double-run verification; parallel-mode collision confirmed pre-existing infra debt, not caused by the fix | Supervisor | Accepted |
 
 ---
 

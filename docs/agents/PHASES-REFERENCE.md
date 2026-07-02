@@ -63,7 +63,9 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 3 — Form Conversion Specifications (all 27 forms specified; Phase 1 & 2 gates closed 2026-07-01; Phase 4 unblocked)**
+**You are here: Phase 10 — Workflow and Focal Review (Phase 9 gate closed 2026-07-02)**
+
+> Note: Phases 4–8 status detail is not recorded in this table (tracking gap — see git history for those phases). This table was last kept current through Phase 3; the entries below for Phase 9 were added at the Phase 9→10 gate.
 
 Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form specs drafted for all 21 web forms; 6 PDFs are reference-only.
 
@@ -118,7 +120,15 @@ Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form 
 | Deferred (A-2/A-3/A-4) | Program mapping + attachments (Process Owner), Excel budget formulas (Budget Officer, final phase) — see DL-014 |
 | Phase 3 approval gate | Specs ready for form-owner approval; approver names TBC pending prototype (DL-015) |
 
-**Next:** Phase 4 — Architecture and Data Design. Inputs confirmed: domain available (D-1), Coolify server provisioned (D-2), no external data-privacy regulatory requirement — applicant consent shown at sign-up (D-3). Phase 4 deadline (D-04) still to confirm.
+| Phase 9 item | Status |
+|---|---|
+| Submission, versioning, comments routes | ✅ Implemented (`submission.ts`, `versions.ts`, `comments.ts`) |
+| Test teardown hygiene fix (auth.test.ts, users.test.ts) | ✅ Committed 39193e6 — `TEST_EMAILS` + FK-ordered `cleanupUsers()` pattern |
+| Full backend suite | ✅ 65/65 passing, two consecutive `--no-file-parallelism` runs (verified 2026-07-02) |
+| Vitest parallel-mode DB collision (formTemplates/proposals/submission) | Known issue, ticketed as RISK-16 in `docs/project-brief/PRIME-v2-Risk-Register.md`; interim mitigation is sequential test execution (`package.json` `test`/`test:local` scripts); real fix deferred to Phase 15 |
+| Phase 9 approval gate | ✅ **Closed 2026-07-02** |
+
+**Next:** Phase 10 — Workflow and Focal Review. New test files from Phase 10 onward must use the `TEST_EMAILS` + FK-ordered cleanup pattern from the start.
 
 ## One Rule
 
