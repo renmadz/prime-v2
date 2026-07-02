@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:push:test": "cross-env DATABASE_URL=postgresql://primev2_user:devpassword123@localhost:5433/primev2_test prisma db push",
+    "//prisma:push:test": "--accept-data-loss is safe: hard-scoped to the disposable localhost:5433 test DB, and connect-pg-simple's session table (unmanaged by Prisma) would otherwise block re-runs once it has rows.",
+    "prisma:push:test": "cross-env DATABASE_URL=postgresql://primev2_user:devpassword123@localhost:5433/primev2_test prisma db push --accept-data-loss",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "prisma": {

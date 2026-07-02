@@ -38,7 +38,7 @@ async function ensureRolesSeeded() {
   }
 }
 
-let ipCounter = 100;
+let ipCounter = 700;
 function nextIp() {
   ipCounter += 1;
   return `10.0.1.${ipCounter}`;

@@ -94,6 +94,7 @@ const TEST_EMAILS = [
   "focal-rbac@test.local",
   "new-staff@test.local",
   "new-applicant@test.local",
+  "staff-google@test.local",
 ];
 
 async function cleanupUsers() {
@@ -425,5 +426,43 @@ describe("Auth routes", () => {
     expect(loginLog).not.toBeNull();
     expect(logoutLog).not.toBeNull();
     expect(deactivateLog).not.toBeNull();
+  });
+
+  it("TC-AUTH-15: Google callback for an account holding a staff role returns 403 + USER_LOGIN_FAILED audit row (mirror of TC-AUTH-03)", async () => {
+    // Mirror case of TC-AUTH-03: auth separation must reject a staff-role
+    // account arriving via the Google OAuth path (Architecture §5). The real
+    // callback needs a live OAuth round trip, so this drives the same
+    // findApplicantByGoogleId → userHasStaffRole rejection via the
+    // non-production test seam in auth.ts.
+    const googleId = "google-staff-role-test-id";
+    const staffRole = await db.role.findUniqueOrThrow({ where: { code: "PROJECT_FOCAL" } });
+    const user = await db.user.create({
+      data: {
+        email: "staff-google@test.local",
+        googleId,
+        firstName: "Staff",
+        lastName: "ViaGoogle",
+        isActive: true,
+        mustChangePassword: false,
+        userRoles: { create: [{ roleId: staffRole.id }] },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/test-google-callback",
+      remoteAddress: nextIp(),
+      payload: { googleId },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    const failLog = await db.auditLog.findFirst({
+      where: { actorUserId: user.id, action: "USER_LOGIN_FAILED" },
+    });
+    expect(failLog).not.toBeNull();
+    // afterState is persisted as a JSON string by auditLog() (see auditLog.ts).
+    const afterState = JSON.parse(failLog!.afterState as string) as { reason?: string };
+    expect(afterState.reason).toBe("staff_role_via_google");
   });
 });
