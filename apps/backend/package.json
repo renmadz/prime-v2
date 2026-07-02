@@ -8,9 +8,11 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest",
+    "test:local": "cross-env TEST_DATABASE_URL=postgresql://primev2_user:devpassword123@localhost:5433/primev2_test vitest --run",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
+    "prisma:push:test": "cross-env DATABASE_URL=postgresql://primev2_user:devpassword123@localhost:5433/primev2_test prisma db push",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
@@ -41,6 +43,7 @@
     "@types/node": "^22.7.4",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "^2.1.1",
+    "cross-env": "^7.0.3",
     "prisma": "6.19.3",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",

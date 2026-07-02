@@ -17,6 +17,9 @@ import proposalTypesRoutes from "./routes/proposalTypes.js";
 import formTemplatesRoutes from "./routes/formTemplates.js";
 import proposalsRoutes from "./routes/proposals.js";
 import attachmentsRoutes from "./routes/attachments.js";
+import submissionRoutes from "./routes/submission.js";
+import commentsRoutes from "./routes/comments.js";
+import versionsRoutes from "./routes/versions.js";
 import { logger, setLogLevel } from "./utils/logger.js";
 
 const SESSION_SLIDING_MAX_AGE_MS = 30 * 60 * 1000;
@@ -99,6 +102,9 @@ export async function buildApp() {
   await app.register(formTemplatesRoutes);
   await app.register(proposalsRoutes);
   await app.register(attachmentsRoutes);
+  await app.register(submissionRoutes);
+  await app.register(commentsRoutes);
+  await app.register(versionsRoutes);
 
   // 8. Error handlers
   app.setErrorHandler((error, _request, reply) => {

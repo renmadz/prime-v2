@@ -7,6 +7,8 @@ import ProposalListPage from "./pages/proposals/ProposalListPage";
 import ProposalTypePage from "./pages/proposals/ProposalTypePage";
 import ProposalFormPage from "./pages/proposals/ProposalFormPage";
 import ProposalDetailPage from "./pages/proposals/ProposalDetailPage";
+import ProposalHistoryPage from "./pages/proposals/ProposalHistoryPage";
+import ProposalComparePage from "./pages/proposals/ProposalComparePage";
 import { useAuth } from "./hooks/useAuth";
 
 function DashboardRoute() {
@@ -54,6 +56,24 @@ function ProposalDetailRoute() {
   );
 }
 
+function ProposalHistoryRoute() {
+  const { role } = useAuth();
+  return (
+    <AppShell role={role} title="Change History">
+      <ProposalHistoryPage />
+    </AppShell>
+  );
+}
+
+function ProposalCompareRoute() {
+  const { role } = useAuth();
+  return (
+    <AppShell role={role} title="Compare Versions">
+      <ProposalComparePage />
+    </AppShell>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter
@@ -69,6 +89,8 @@ export default function App() {
         <Route path="/proposals/new" element={<ProposalTypeRoute />} />
         <Route path="/proposals/new/:typeId" element={<ProposalFormRoute />} />
         <Route path="/proposals/:id" element={<ProposalDetailRoute />} />
+        <Route path="/proposals/:id/history" element={<ProposalHistoryRoute />} />
+        <Route path="/proposals/:id/compare" element={<ProposalCompareRoute />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

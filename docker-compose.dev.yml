@@ -22,6 +22,30 @@ services:
       - "5432:5432"
     # Accessible at localhost:5432 in dev only
 
+  # ─────────────────────────────────────────────────────────
+  # prime-postgres-test — isolated test database on port 5433
+  # Used by `npm run test` in apps/backend.
+  # Credentials are fixed/public — this DB never holds real data.
+  # ─────────────────────────────────────────────────────────
+  prime-postgres-test:
+    image: postgres:16-alpine
+    container_name: prime-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: primev2_test
+      POSTGRES_USER: primev2_user
+      POSTGRES_PASSWORD: devpassword123
+    ports:
+      - "5433:5432"
+    networks:
+      - prime-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U primev2_user -d primev2_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   prime-minio:
     ports:
       - "9000:9000"   # MinIO S3 API

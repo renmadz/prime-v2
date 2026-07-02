@@ -15,7 +15,13 @@ Expected response: { "status": "ok", "timestamp": "<ISO string>" }
 Frontend: http://localhost:5173
 
 ## Run tests outside Docker
-cd apps/backend && npm run test -- --run
+# One-time schema sync for the test DB (already included in docker-compose.dev.yml):
+# The test DB (prime-postgres-test) starts automatically when you run the dev compose stack.
+# After first startup, push the schema once:
+cd apps/backend && npm run prisma:push:test
+
+# Then run tests on any OS (Mac/Windows/Linux):
+cd apps/backend && npm run test:local
 cd apps/frontend && npm run test -- --run
 
 ## TypeScript check

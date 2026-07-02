@@ -108,3 +108,105 @@ export interface AttachmentMeta {
   sizeBytes: number;
   uploadedAt: string;
 }
+
+// ── Phase 9 types ─────────────────────────────────────────────────────────────
+
+export interface ProposalComment {
+  id: string;
+  commentType: string;
+  visibility: string;
+  body: string;
+  targetFieldId: string | null;
+  targetSectionId: string | null;
+  isResolved: boolean;
+  resolvedAt: string | null;
+  createdAt: string;
+  authorUserId: string;
+}
+
+export interface VersionDiff {
+  fieldId: string;
+  label: string;
+  v1Value: string | null;
+  v2Value: string | null;
+  changed: boolean;
+}
+
+export interface HistoryEntry {
+  action: string;
+  actorUserId: string | null;
+  createdAt: string;
+  beforeState: string | null;
+  afterState: string | null;
+}
+
+export interface CommentPayload {
+  commentType: 'GENERAL' | 'FIELD' | 'SECTION';
+  visibility: 'PUBLIC' | 'INTERNAL';
+  body: string;
+  targetFieldId?: string;
+  targetSectionId?: string;
+}
+
+export interface ProposalVersionSummary {
+  id: string;
+  versionNumber: number;
+  isSubmitted: boolean;
+  statusAtCreation: string;
+  createdAt: string;
+  submittedAt: string | null;
+}
+
+export interface SubmitResponse {
+  id: string;
+  status: string;
+  submittedAt: string;
+  currentVersionId: string;
+}
+
+export interface ResubmitResponse {
+  id: string;
+  status: string;
+  currentVersionId: string;
+  versionNumber: number;
+}
+
+// ── Phase 9 API methods ───────────────────────────────────────────────────────
+
+export const phase9Api = {
+  submitProposal: (id: string) =>
+    request<SubmitResponse>('POST', `/api/proposals/${id}/submit`),
+
+  resubmitProposal: (id: string) =>
+    request<ResubmitResponse>('POST', `/api/proposals/${id}/resubmit`),
+
+  getComments: (proposalId: string) =>
+    request<ProposalComment[]>('GET', `/api/proposals/${proposalId}/comments`),
+
+  addComment: (proposalId: string, body: CommentPayload) =>
+    request<ProposalComment>('POST', `/api/proposals/${proposalId}/comments`, body),
+
+  resolveComment: (proposalId: string, commentId: string) =>
+    request<{ id: string; isResolved: boolean; resolvedAt: string }>(
+      'PATCH',
+      `/api/proposals/${proposalId}/comments/${commentId}/resolve`,
+    ),
+
+  reopenComment: (proposalId: string, commentId: string) =>
+    request<{ id: string; isResolved: boolean }>(
+      'PATCH',
+      `/api/proposals/${proposalId}/comments/${commentId}/reopen`,
+    ),
+
+  compareVersions: (proposalId: string, v1: string, v2: string) =>
+    request<VersionDiff[]>(
+      'GET',
+      `/api/proposals/${proposalId}/versions/${v1}/compare/${v2}`,
+    ),
+
+  getHistory: (proposalId: string) =>
+    request<HistoryEntry[]>('GET', `/api/proposals/${proposalId}/history`),
+
+  getVersions: (proposalId: string) =>
+    request<ProposalVersionSummary[]>('GET', `/api/proposals/${proposalId}/versions`),
+};

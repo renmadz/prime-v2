@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   api,
+  phase9Api,
   type FormSection,
   type FormTemplateVersionResponse,
   type ProposalTypeSummary,
@@ -16,6 +17,7 @@ interface FieldValues {
 
 interface CreatedProposal {
   id: string;
+  status: string;
 }
 
 export default function ProposalFormPage() {
@@ -23,11 +25,15 @@ export default function ProposalFormPage() {
   const navigate = useNavigate();
 
   const [proposalId, setProposalId] = useState<string | null>(null);
+  const [proposalStatus, setProposalStatus] = useState<string>("DRAFT");
   const [sections, setSections] = useState<FormSection[]>([]);
   const [fieldValues, setFieldValues] = useState<FieldValues>({});
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,6 +52,7 @@ export default function ProposalFormPage() {
           title: "Draft Proposal",
         });
         setProposalId(created.id);
+        setProposalStatus(created.status ?? "DRAFT");
 
         // Step 2: Get proposal type to find defaultFormTemplateId
         const propType = await api.get<ProposalTypeSummary>(
@@ -137,6 +144,27 @@ export default function ProposalFormPage() {
       handleFieldChange(formFieldId, file.name);
     } catch {
       setSaveStatus("failed");
+    }
+  }
+
+  async function handleSubmitProposal() {
+    if (!proposalId) return;
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      await phase9Api.submitProposal(proposalId);
+      setShowSubmitConfirm(false);
+      navigate(`/proposals/${proposalId}`);
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status === 409) {
+        setSubmitError("This proposal has already been submitted.");
+      } else {
+        setSubmitError(err instanceof Error ? err.message : "Submission failed.");
+      }
+    } finally {
+      setSubmitting(false);
+      setShowSubmitConfirm(false);
     }
   }
 
@@ -337,7 +365,7 @@ export default function ProposalFormPage() {
         </fieldset>
       ))}
 
-      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <button
           type="button"
           onClick={handleSaveNow}
@@ -350,6 +378,7 @@ export default function ProposalFormPage() {
             fontSize: "0.875rem",
             fontWeight: 500,
           }}
+          aria-label="Save as draft"
         >
           Save as Draft
         </button>
@@ -371,10 +400,108 @@ export default function ProposalFormPage() {
             fontSize: "0.875rem",
             fontWeight: 500,
           }}
+          aria-label="Go to review"
         >
           Next: Review
         </button>
+
+        {proposalStatus === "DRAFT" && (
+          <button
+            type="button"
+            onClick={() => setShowSubmitConfirm(true)}
+            style={{
+              padding: "0.5rem 1rem",
+              border: "none",
+              borderRadius: "0.375rem",
+              backgroundColor: "#16a34a",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}
+            aria-label="Submit proposal"
+          >
+            Submit Proposal
+          </button>
+        )}
       </div>
+
+      {submitError && (
+        <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.75rem" }}>
+          {submitError}
+        </p>
+      )}
+
+      {/* Submit confirmation dialog */}
+      {showSubmitConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submit-confirm-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "0.5rem",
+              padding: "1.5rem",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+            }}
+          >
+            <h3 id="submit-confirm-title" style={{ margin: "0 0 0.75rem 0", fontSize: "1rem" }}>
+              Submit Proposal
+            </h3>
+            <p style={{ margin: "0 0 1.25rem 0", fontSize: "0.875rem", color: "#374151" }}>
+              Once submitted, this version cannot be edited.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setShowSubmitConfirm(false)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#fff",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
+                }}
+                aria-label="Cancel submission"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSubmitProposal()}
+                disabled={submitting}
+                style={{
+                  padding: "0.5rem 1rem",
+                  border: "none",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#16a34a",
+                  color: "#fff",
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  opacity: submitting ? 0.7 : 1,
+                }}
+                aria-label="Confirm submission"
+              >
+                {submitting ? "Submitting…" : "Confirm Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

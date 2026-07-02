@@ -42,6 +42,10 @@ model User {
   proposalAssignments ProposalAssignment[]  @relation("ProposalAssignments")
   assignedProposals   ProposalAssignment[]  @relation("AssignedByUser")
 
+  // Phase 9 relations
+  authoredComments    ProposalComment[] @relation("CommentAuthor")
+  resolvedComments    ProposalComment[] @relation("CommentResolver")
+
   @@index([email])
   @@index([googleId])
   @@map("users")
@@ -245,6 +249,9 @@ model FormSection {
   formTemplateVersion FormTemplateVersion @relation(fields: [formTemplateVersionId], references: [id])
   fields              FormField[]
 
+  // Phase 9 relations
+  comments            ProposalComment[]
+
   @@map("form_sections")
 }
 
@@ -262,6 +269,9 @@ model FormField {
 
   formSection       FormSection          @relation(fields: [formSectionId], references: [id])
   fieldValues       ProposalFieldValue[]
+
+  // Phase 9 relations
+  comments            ProposalComment[]
 
   @@map("form_fields")
 }
@@ -297,6 +307,9 @@ model Proposal {
   attachments      ProposalAttachment[]
   assignments      ProposalAssignment[]
 
+  // Phase 9 relations
+  comments            ProposalComment[]
+
   @@index([applicantUserId])
   @@index([status])
   @@index([proposalTypeId])
@@ -324,6 +337,9 @@ model ProposalVersion {
   fieldValues           ProposalFieldValue[]
   attachments           ProposalAttachment[]
   currentForProposals   Proposal[]           @relation("CurrentVersion")
+
+  // Phase 9 relations
+  comments            ProposalComment[]
 
   @@index([proposalId])
   @@index([versionNumber])
@@ -388,4 +404,36 @@ model ProposalAssignment {
   @@index([roleCode])
   @@index([isActive])
   @@map("proposal_assignments")
+}
+
+// ─── Phase 9 Models ───────────────────────────────────────────────────────────
+
+model ProposalComment {
+  id                  String    @id @default(uuid()) @db.Uuid
+  proposalId          String    @map("proposal_id") @db.Uuid
+  proposalVersionId   String    @map("proposal_version_id") @db.Uuid
+  authorUserId        String    @map("author_user_id") @db.Uuid
+  commentType         String    @map("comment_type") @db.VarChar(20)
+  visibility          String    @db.VarChar(20)
+  targetFieldId       String?   @map("target_field_id") @db.Uuid
+  targetSectionId     String?   @map("target_section_id") @db.Uuid
+  body                String
+  isResolved          Boolean   @default(false) @map("is_resolved")
+  resolvedBy          String?   @map("resolved_by") @db.Uuid
+  resolvedAt          DateTime? @map("resolved_at") @db.Timestamptz()
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+
+  proposal          Proposal        @relation(fields: [proposalId], references: [id])
+  proposalVersion   ProposalVersion @relation(fields: [proposalVersionId], references: [id])
+  author            User            @relation("CommentAuthor", fields: [authorUserId], references: [id])
+  resolver          User?           @relation("CommentResolver", fields: [resolvedBy], references: [id])
+  targetField       FormField?      @relation(fields: [targetFieldId], references: [id])
+  targetSection     FormSection?    @relation(fields: [targetSectionId], references: [id])
+
+  @@index([proposalId])
+  @@index([proposalVersionId])
+  @@index([authorUserId])
+  @@index([isResolved])
+  @@map("proposal_comments")
 }
