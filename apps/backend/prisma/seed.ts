@@ -216,6 +216,49 @@ async function main() {
   }
 
   console.log("Phase 8 seed: Office, Programs, Form Templates, and Proposal Types upserted.");
+
+  // ── Phase 10: Workflow definitions ────────────────────────────────────────────
+  const proposalWorkflow = await prisma.workflowDefinition.upsert({
+    where: { code: "PROPOSAL_LIFECYCLE" },
+    update: {},
+    create: {
+      code: "PROPOSAL_LIFECYCLE",
+      name: "Proposal Approval Lifecycle",
+      isActive: true,
+    },
+  });
+
+  const focalTransitions = [
+    { fromStatus: "SUBMITTED_TO_FOCAL", toStatus: "UNDER_FOCAL_REVIEW", actionCode: "ACKNOWLEDGE", actorRole: "PROJECT_FOCAL" },
+    { fromStatus: "RESUBMITTED_TO_FOCAL", toStatus: "UNDER_FOCAL_REVIEW", actionCode: "ACKNOWLEDGE", actorRole: "PROJECT_FOCAL" },
+    { fromStatus: "UNDER_FOCAL_REVIEW", toStatus: "RETURNED_TO_APPLICANT", actionCode: "RETURN_TO_APPLICANT", actorRole: "PROJECT_FOCAL" },
+    { fromStatus: "UNDER_FOCAL_REVIEW", toStatus: "ENDORSED_TO_RTEC", actionCode: "ENDORSE_TO_RTEC", actorRole: "PROJECT_FOCAL" },
+    { fromStatus: "RETURNED_TO_FOCAL_BY_RTEC", toStatus: "ENDORSED_TO_RTEC", actionCode: "RETURN_TO_RTEC", actorRole: "PROJECT_FOCAL" },
+    { fromStatus: "RETURNED_TO_FOCAL_BY_RTEC", toStatus: "ENDORSED_TO_BUDGET", actionCode: "ENDORSE_TO_BUDGET", actorRole: "PROJECT_FOCAL" },
+  ];
+
+  for (const t of focalTransitions) {
+    const existing = await prisma.workflowTransition.findFirst({
+      where: {
+        actionCode: t.actionCode,
+        actorRole: t.actorRole,
+        fromStatus: t.fromStatus,
+        workflowDefinitionId: proposalWorkflow.id,
+      },
+    });
+    if (!existing) {
+      await prisma.workflowTransition.create({
+        data: {
+          workflowDefinitionId: proposalWorkflow.id,
+          fromStatus: t.fromStatus,
+          toStatus: t.toStatus,
+          actionCode: t.actionCode,
+          actorRole: t.actorRole,
+        },
+      });
+    }
+  }
+  console.log("✓ Phase 10: workflow_definitions and workflow_transitions seeded");
 }
 
 main()

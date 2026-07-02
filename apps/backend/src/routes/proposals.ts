@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { Proposal } from "@prisma/client";
+import type { Proposal, Prisma } from "@prisma/client";
 import { prisma } from "../db/client.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -147,10 +147,30 @@ export default async function proposalsRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const currentUser = request.currentUser!;
 
-      const isApplicant = currentUser.roles.includes("APPLICANT");
+      const isApplicant = currentUser.roles.includes("APPLICANT") &&
+        currentUser.roles.every((r) => r === "APPLICANT");
+      const isAdmin = currentUser.roles.includes("ADMIN");
+      const isFocalOnly = currentUser.roles.includes("PROJECT_FOCAL") && !isAdmin;
+
+      let whereClause: Prisma.ProposalWhereInput | undefined = undefined;
+
+      if (isApplicant) {
+        whereClause = { applicantUserId: currentUser.id };
+      } else if (isFocalOnly) {
+        whereClause = {
+          assignments: {
+            some: {
+              userId: currentUser.id,
+              roleCode: "PROJECT_FOCAL",
+              isActive: true,
+            },
+          },
+        };
+      }
+      // ADMIN and other staff roles: no filter (see all)
 
       const proposals = await prisma.proposal.findMany({
-        where: isApplicant ? { applicantUserId: currentUser.id } : undefined,
+        where: whereClause,
         include: { proposalType: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
       });

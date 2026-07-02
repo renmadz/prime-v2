@@ -46,6 +46,10 @@ model User {
   authoredComments    ProposalComment[] @relation("CommentAuthor")
   resolvedComments    ProposalComment[] @relation("CommentResolver")
 
+  // Phase 10 relations
+  workflowHistory       ProposalWorkflowHistory[] @relation("WorkflowHistoryActor")
+  receivedNotifications Notification[]            @relation("ReceivedNotifications")
+
   @@index([email])
   @@index([googleId])
   @@map("users")
@@ -310,6 +314,10 @@ model Proposal {
   // Phase 9 relations
   comments            ProposalComment[]
 
+  // Phase 10 relations
+  workflowHistory ProposalWorkflowHistory[]
+  notifications   Notification[]
+
   @@index([applicantUserId])
   @@index([status])
   @@index([proposalTypeId])
@@ -436,4 +444,85 @@ model ProposalComment {
   @@index([authorUserId])
   @@index([isResolved])
   @@map("proposal_comments")
+}
+
+// ─── Phase 10 Models ──────────────────────────────────────────────────────────
+
+model WorkflowDefinition {
+  id        String  @id @default(uuid()) @db.Uuid
+  code      String  @unique @db.VarChar(50)
+  name      String  @db.VarChar(255)
+  isActive  Boolean @default(true) @map("is_active")
+
+  steps       WorkflowStep[]
+  transitions WorkflowTransition[]
+
+  @@map("workflow_definitions")
+}
+
+model WorkflowStep {
+  id                   String  @id @default(uuid()) @db.Uuid
+  workflowDefinitionId String  @map("workflow_definition_id") @db.Uuid
+  statusCode           String  @map("status_code") @db.VarChar(50)
+  actorRole            String  @map("actor_role") @db.VarChar(50)
+  description          String?
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id])
+
+  @@map("workflow_steps")
+}
+
+model WorkflowTransition {
+  id                   String  @id @default(uuid()) @db.Uuid
+  workflowDefinitionId String  @map("workflow_definition_id") @db.Uuid
+  fromStatus           String  @map("from_status") @db.VarChar(50)
+  toStatus             String  @map("to_status") @db.VarChar(50)
+  actionCode           String  @map("action_code") @db.VarChar(50)
+  actorRole            String  @map("actor_role") @db.VarChar(50)
+  conditions           String?
+
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id])
+
+  @@index([actionCode, actorRole])
+  @@index([fromStatus])
+  @@map("workflow_transitions")
+}
+
+model ProposalWorkflowHistory {
+  id                    String   @id @default(uuid()) @db.Uuid
+  proposalId            String   @map("proposal_id") @db.Uuid
+  fromStatus            String   @map("from_status") @db.VarChar(50)
+  toStatus              String   @map("to_status") @db.VarChar(50)
+  actorUserId           String   @map("actor_user_id") @db.Uuid
+  actorRole             String   @map("actor_role") @db.VarChar(50)
+  workflowAction        String   @map("workflow_action") @db.VarChar(50)
+  proposalVersionNumber Int      @map("proposal_version_number")
+  comment               String?
+  sessionReference      String?  @map("session_reference") @db.VarChar(255)
+  transitionedAt        DateTime @default(now()) @map("transitioned_at") @db.Timestamptz()
+
+  proposal  Proposal @relation(fields: [proposalId], references: [id])
+  actorUser User     @relation("WorkflowHistoryActor", fields: [actorUserId], references: [id])
+
+  @@index([proposalId])
+  @@index([transitionedAt])
+  @@map("proposal_workflow_history")
+}
+
+model Notification {
+  id              String    @id @default(uuid()) @db.Uuid
+  recipientUserId String    @map("recipient_user_id") @db.Uuid
+  proposalId      String?   @map("proposal_id") @db.Uuid
+  eventType       String    @map("event_type") @db.VarChar(100)
+  message         String
+  isRead          Boolean   @default(false) @map("is_read")
+  readAt          DateTime? @map("read_at") @db.Timestamptz()
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  recipient User      @relation("ReceivedNotifications", fields: [recipientUserId], references: [id])
+  proposal  Proposal? @relation(fields: [proposalId], references: [id])
+
+  @@index([recipientUserId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
 }

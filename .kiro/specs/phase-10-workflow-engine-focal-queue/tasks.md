@@ -12,7 +12,7 @@ Task 1 (Schema + Seed) → Task 2 (Engine Service) → Task 3 (Workflow Routes) 
 
 ## Tasks
 
-- [ ] 1. Extend Prisma schema and seed workflow definitions
+- [x] 1. Extend Prisma schema and seed workflow definitions
   - Add `WorkflowDefinition` model to `apps/backend/prisma/schema.prisma`:
     - Fields: `id` (UUID PK), `code` (String unique), `name` (String), `isActive` (Boolean default true)
     - Relation: `steps WorkflowStep[]`, `transitions WorkflowTransition[]`
@@ -48,7 +48,7 @@ Task 1 (Schema + Seed) → Task 2 (Engine Service) → Task 3 (Workflow Routes) 
     - Use `upsert` keyed on `{ actionCode_actorRole_fromStatus }` composite or a stable unique identifier to ensure seed is re-runnable
   - All seed upserts must use `update: {}` (no-op on re-run) and `create: { ... }` with full data
 
-- [ ] 2. Implement workflow engine service
+- [x] 2. Implement workflow engine service
   - Create `apps/backend/src/services/workflowEngine.ts`
   - Export `WorkflowError` class:
     ```typescript
@@ -72,7 +72,7 @@ Task 1 (Schema + Seed) → Task 2 (Engine Service) → Task 3 (Workflow Routes) 
   - The function must **not** commit — it only reads and validates within the caller's transaction
   - Run `cd apps/backend && npx tsc --noEmit` — must exit 0
 
-- [ ] 3. Implement workflow action routes (Project Focal)
+- [x] 3. Implement workflow action routes (Project Focal)
   - Create `apps/backend/src/routes/workflow.ts` as a Fastify plugin
   - Import: `requireAuth` from `../middleware/auth.js`, `prisma` from `../db/client.js`, `auditLog` from `../services/auditLog.js`, `validateTransition`, `WorkflowError` from `../services/workflowEngine.js`
   - Implement shared helper `assertFocalAssignment(proposalId, userId, tx)`: queries `proposal_assignments` and throws `WorkflowError(403, "NOT_ASSIGNED", ...)` if no active PROJECT_FOCAL assignment found
@@ -120,7 +120,7 @@ Task 1 (Schema + Seed) → Task 2 (Engine Service) → Task 3 (Workflow Routes) 
   - Register `workflowRoutes` in `apps/backend/src/app.ts` (import + `await app.register(workflowRoutes)`)
   - Run `cd apps/backend && npx tsc --noEmit` — must exit 0
 
-- [ ] 4. Extend proposals list with PROJECT_FOCAL assignment filter and run existing tests
+- [x] 4. Extend proposals list with PROJECT_FOCAL assignment filter and run existing tests
   - Open `apps/backend/src/routes/proposals.ts` and locate the `GET /api/proposals` handler
   - Find the section that applies `where` clause based on role (currently filtering for APPLICANT)
   - Add a new branch:
@@ -138,7 +138,7 @@ Task 1 (Schema + Seed) → Task 2 (Engine Service) → Task 3 (Workflow Routes) 
   - Run `cd apps/backend && npm run test -- --run` — existing tests must still pass (do not break any previously passing test)
   - Run `cd apps/backend && npx tsc --noEmit` — must exit 0
 
-- [ ] 5. Write and run Phase 10 tests, then verify QA gate
+- [x] 5. Write and run Phase 10 tests, then verify QA gate
   - Create `apps/backend/src/routes/workflow.test.ts` with the following test cases using the same Vitest + Fastify inject pattern as existing test files:
   - **TC-WF-01** — Focal acknowledge: POST `/api/proposals/:id/workflow/acknowledge` with valid Focal session; proposal in `SUBMITTED_TO_FOCAL` → expect 200, status `UNDER_FOCAL_REVIEW`
   - **TC-WF-01b** — Focal acknowledge from resubmitted: proposal in `RESUBMITTED_TO_FOCAL` → expect 200, status `UNDER_FOCAL_REVIEW`
