@@ -291,6 +291,7 @@
 | **Mitigation** | Interim: `apps/backend/package.json` test scripts run `vitest --run --no-file-parallelism`, applied in Phase 9 cleanup (2026-07-02). Real fix (per-file DB schema/transaction isolation, or dedicated test DB per worker) belongs in Phase 15. |
 | **Contingency** | Keep sequential test execution until Phase 15 delivers proper isolation; do not re-enable parallel test execution before then. |
 | **Owner** | QA Agent / Database Agent |
+| **Note (2026-07-02)** | A second, distinct flake was observed during Phase 9 gate verification: `auth.test.ts` login-rate-limit tests (TC-AUTH-01/02/03/04/06/10/11) fail with 429s/timeouts when the full suite is re-run immediately back-to-back with no cooldown, because the in-memory rate limiter state persists across runs within the same short window. Not reproduced with a ~15s gap between runs. Not caused by the parallelism fix above — separate root cause (rate-limiter state, not DB fixtures). Also scope for Phase 15 (e.g. reset/skip rate limiter in test env, or per-run unique IPs). |
 
 ---
 
