@@ -58,12 +58,15 @@ export async function validateTransition(
 
   if (!transition) {
     // Could be invalid action OR concurrent status change — distinguish by
-    // checking whether ANY transition exists for this action+role regardless of status.
-    const anyTransition = await tx.workflowTransition.findFirst({
-      where: { actionCode: action, actorRole },
+    // checking whether this action+role's transition already landed the
+    // proposal on its current status (i.e. someone else beat this request
+    // to the same transition). Any other current status means the action
+    // was never applicable from here, regardless of status history.
+    const alreadyTransitioned = await tx.workflowTransition.findFirst({
+      where: { actionCode: action, actorRole, toStatus: proposal.status },
     });
 
-    if (anyTransition) {
+    if (alreadyTransitioned) {
       // Action is valid in principle but wrong from-status → concurrent edit
       throw new WorkflowError(
         409,
