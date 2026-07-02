@@ -280,6 +280,20 @@
 
 ---
 
+| Field | Detail |
+|---|---|
+| **ID** | RISK-16 |
+| **Description** | Vitest parallel file execution collides on shared test DB fixtures. `formTemplates.test.ts`, `proposals.test.ts`, `submission.test.ts` fail intermittently when vitest runs test files in parallel against the shared `primev2_test` database — each passes in isolation and the full suite is green under `--no-file-parallelism`. |
+| **Affected phase** | Phase 9 (discovered), Phase 15 (Quality Assurance — real fix) |
+| **Impact** | Medium |
+| **Likelihood** | High (reproducible under parallel test runs) |
+| **Risk Score** | **Medium** |
+| **Mitigation** | Interim: `apps/backend/package.json` test scripts run `vitest --run --no-file-parallelism`, applied in Phase 9 cleanup (2026-07-02). Real fix (per-file DB schema/transaction isolation, or dedicated test DB per worker) belongs in Phase 15. |
+| **Contingency** | Keep sequential test execution until Phase 15 delivers proper isolation; do not re-enable parallel test execution before then. |
+| **Owner** | QA Agent / Database Agent |
+
+---
+
 ## Approval Record
 
 When the Business Owner approves the Project Brief, the following risks are considered
