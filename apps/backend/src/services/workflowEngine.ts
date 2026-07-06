@@ -85,3 +85,34 @@ export async function validateTransition(
 
   return { proposal, transition };
 }
+
+// ── assertNotFinalized ───────────────────────────────────────────────────────
+
+const FINALIZED_STATUSES = ["APPROVED", "REJECTED", "WITHDRAWN"];
+
+/**
+ * Blocks writes on a proposal that has reached a terminal status.
+ * Must be called inside the same prisma.$transaction as the write it guards.
+ * Throws WorkflowError(409, "PROPOSAL_FINALIZED", ...) if finalized.
+ */
+export async function assertNotFinalized(
+  proposalId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const proposal = await tx.proposal.findUnique({
+    where: { id: proposalId },
+    select: { status: true },
+  });
+
+  if (!proposal) {
+    throw new WorkflowError(404, "PROPOSAL_NOT_FOUND", `Proposal ${proposalId} not found`);
+  }
+
+  if (FINALIZED_STATUSES.includes(proposal.status)) {
+    throw new WorkflowError(
+      409,
+      "PROPOSAL_FINALIZED",
+      "This proposal has been finalized and cannot be modified",
+    );
+  }
+}

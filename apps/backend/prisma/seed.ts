@@ -358,6 +358,85 @@ async function main() {
   console.log(
     `✓ Phase 11: rtec_groups, rtec_memberships, and 4 dev RTEC users seeded (password: ${RTEC_DEV_PASSWORD} — DEV ONLY)`,
   );
+
+  // ── Phase 12: Budget, Accounting, RD workflow transitions ─────────────────────
+  const phase12Transitions = [
+    // Budget Officer actor
+    { fromStatus: "ENDORSED_TO_BUDGET", toStatus: "UNDER_BUDGET_REVIEW", actionCode: "BUDGET_OPEN", actorRole: "BUDGET_OFFICER" },
+    { fromStatus: "UNDER_BUDGET_REVIEW", toStatus: "RETURNED_BY_BUDGET", actionCode: "BUDGET_RETURN", actorRole: "BUDGET_OFFICER" },
+    { fromStatus: "UNDER_BUDGET_REVIEW", toStatus: "ENDORSED_TO_ACCOUNTING", actionCode: "BUDGET_ENDORSE", actorRole: "BUDGET_OFFICER" },
+    { fromStatus: "RETURNED_BY_ACCOUNTING", toStatus: "ENDORSED_TO_ACCOUNTING", actionCode: "BUDGET_RE_ENDORSE", actorRole: "BUDGET_OFFICER" },
+    // Accountant actor
+    { fromStatus: "ENDORSED_TO_ACCOUNTING", toStatus: "UNDER_ACCOUNTING_REVIEW", actionCode: "ACCOUNTING_OPEN", actorRole: "ACCOUNTANT" },
+    { fromStatus: "UNDER_ACCOUNTING_REVIEW", toStatus: "RETURNED_BY_ACCOUNTING", actionCode: "ACCOUNTING_RETURN_BUDGET", actorRole: "ACCOUNTANT" },
+    { fromStatus: "UNDER_ACCOUNTING_REVIEW", toStatus: "RETURNED_BY_ACCOUNTING", actionCode: "ACCOUNTING_RETURN_FOCAL", actorRole: "ACCOUNTANT" },
+    { fromStatus: "UNDER_ACCOUNTING_REVIEW", toStatus: "ENDORSED_TO_RD", actionCode: "ACCOUNTING_ENDORSE_RD", actorRole: "ACCOUNTANT" },
+    // Project Focal actor (re-route after direct Accountant return)
+    { fromStatus: "RETURNED_BY_ACCOUNTING", toStatus: "UNDER_FOCAL_REVIEW", actionCode: "FOCAL_REROUTE", actorRole: "PROJECT_FOCAL" },
+    // Regional Director actor
+    { fromStatus: "ENDORSED_TO_RD", toStatus: "UNDER_RD_REVIEW", actionCode: "RD_OPEN", actorRole: "REGIONAL_DIRECTOR" },
+    { fromStatus: "UNDER_RD_REVIEW", toStatus: "APPROVED", actionCode: "RD_APPROVE", actorRole: "REGIONAL_DIRECTOR" },
+    { fromStatus: "UNDER_RD_REVIEW", toStatus: "DEFERRED", actionCode: "RD_DEFER", actorRole: "REGIONAL_DIRECTOR" },
+    { fromStatus: "UNDER_RD_REVIEW", toStatus: "REJECTED", actionCode: "RD_REJECT", actorRole: "REGIONAL_DIRECTOR" },
+    { fromStatus: "UNDER_RD_REVIEW", toStatus: "RETURNED_TO_APPLICANT", actionCode: "RD_RETURN", actorRole: "REGIONAL_DIRECTOR" },
+    { fromStatus: "DEFERRED", toStatus: "UNDER_RD_REVIEW", actionCode: "RD_RESUME", actorRole: "REGIONAL_DIRECTOR" },
+  ];
+
+  for (const t of phase12Transitions) {
+    await prisma.workflowTransition.upsert({
+      where: {
+        actionCode_actorRole_fromStatus: {
+          actionCode: t.actionCode,
+          actorRole: t.actorRole,
+          fromStatus: t.fromStatus,
+        },
+      },
+      update: { toStatus: t.toStatus },
+      create: {
+        workflowDefinitionId: proposalWorkflow.id,
+        fromStatus: t.fromStatus,
+        toStatus: t.toStatus,
+        actionCode: t.actionCode,
+        actorRole: t.actorRole,
+      },
+    });
+  }
+  console.log("✓ Phase 12: Budget/Accounting/RD workflow_transitions seeded");
+
+  // ── Phase 12: Budget Officer, Accountant, RD dev users ────────────────────────
+  const PHASE12_DEV_PASSWORD = "DevPhase12Passw0rd!123";
+  const phase12DevPasswordHash = await bcrypt.hash(PHASE12_DEV_PASSWORD, 12);
+
+  const phase12DevUserDefs = [
+    { email: "budget1@dev.local", firstName: "Budget", lastName: "Officer1", roleCode: "BUDGET_OFFICER" },
+    { email: "accountant1@dev.local", firstName: "Accountant", lastName: "One", roleCode: "ACCOUNTANT" },
+    { email: "rd1@dev.local", firstName: "Regional", lastName: "Director1", roleCode: "REGIONAL_DIRECTOR" },
+  ];
+
+  for (const def of phase12DevUserDefs) {
+    const role = await prisma.role.findUniqueOrThrow({ where: { code: def.roleCode } });
+    const user = await prisma.user.upsert({
+      where: { email: def.email },
+      update: {},
+      create: {
+        email: def.email,
+        passwordHash: phase12DevPasswordHash,
+        firstName: def.firstName,
+        lastName: def.lastName,
+        isActive: true,
+        mustChangePassword: false,
+      },
+    });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      update: {},
+      create: { userId: user.id, roleId: role.id },
+    });
+  }
+
+  console.log(
+    `✓ Phase 12: budget1, accountant1, rd1 dev users seeded (password: ${PHASE12_DEV_PASSWORD} — DEV ONLY)`,
+  );
 }
 
 main()

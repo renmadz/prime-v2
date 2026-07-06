@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db/client.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validateTransition, WorkflowError } from "../services/workflowEngine.js";
+import { assertNotFinalized, validateTransition, WorkflowError } from "../services/workflowEngine.js";
 import {
   getActiveRtecGroupForProposal,
   notifyRtecGroup,
@@ -672,6 +672,96 @@ export default async function workflowRoutes(fastify: FastifyInstance) {
           }
 
           return performRtecSubmitRecommendation(params.id, currentUser.id, tx);
+        });
+
+        return reply.status(200).send({
+          id: result.id,
+          status: result.status,
+          transitionedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        if (err instanceof WorkflowError) {
+          return reply.status(err.statusCode).send({
+            error: err.statusCode === 409 ? "Conflict" : err.statusCode === 422 ? "Unprocessable Entity" : "Forbidden",
+            code: err.code,
+            message: err.message,
+            statusCode: err.statusCode,
+          });
+        }
+        throw err;
+      }
+    },
+  );
+
+  // ── POST /api/proposals/:id/workflow/focal-reroute ────────────────────────
+  // Project Focal re-routes a proposal that the Accountant returned directly
+  // (RETURNED_BY_ACCOUNTING → UNDER_FOCAL_REVIEW), skipping Budget entirely.
+  fastify.post(
+    "/api/proposals/:id/workflow/focal-reroute",
+    { preHandler: requireAuth() },
+    async (request, reply) => {
+      const currentUser = request.currentUser!;
+      const params = idParamSchema.parse(request.params);
+
+      if (!currentUser.roles.includes("PROJECT_FOCAL")) {
+        return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+      }
+
+      let body: z.infer<typeof returnToRtecBodySchema>;
+      try {
+        body = returnToRtecBodySchema.parse(request.body);
+      } catch {
+        return reply.status(422).send({
+          error: "Unprocessable Entity",
+          code: "COMMENT_REQUIRED",
+          message: "A comment is required for focal-reroute",
+          statusCode: 422,
+        });
+      }
+
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          await assertFocalAssignment(params.id, currentUser.id, tx);
+          await assertNotFinalized(params.id, tx);
+          const { proposal, transition } = await validateTransition(
+            params.id, "FOCAL_REROUTE", "PROJECT_FOCAL", tx,
+          );
+
+          const versionNumber = (proposal as any).currentVersion?.versionNumber ?? 0;
+
+          const updated = await tx.proposal.update({
+            where: { id: params.id },
+            data: { status: transition.toStatus },
+          });
+
+          await tx.proposalWorkflowHistory.create({
+            data: {
+              proposalId: params.id,
+              fromStatus: transition.fromStatus,
+              toStatus: transition.toStatus,
+              actorUserId: currentUser.id,
+              actorRole: "PROJECT_FOCAL",
+              workflowAction: "FOCAL_REROUTE",
+              proposalVersionNumber: versionNumber,
+              comment: body.comment,
+              sessionReference: request.ip ?? null,
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              actorUserId: currentUser.id,
+              actorRole: "PROJECT_FOCAL",
+              action: "WORKFLOW_FOCAL_REROUTE",
+              entityType: "proposals",
+              entityId: params.id,
+              beforeState: JSON.stringify({ status: transition.fromStatus }),
+              afterState: JSON.stringify({ status: transition.toStatus }),
+              ipAddress: request.ip ?? null,
+            },
+          });
+
+          return updated;
         });
 
         return reply.status(200).send({

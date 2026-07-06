@@ -23,6 +23,9 @@ import versionsRoutes from "./routes/versions.js";
 import workflowRoutes from "./routes/workflow.js";
 import rtecRoutes from "./routes/rtec.js";
 import adminRtecGroupsRoutes from "./routes/adminRtecGroups.js";
+import budgetRoutes from "./routes/budget.js";
+import accountingRoutes from "./routes/accounting.js";
+import rdRoutes from "./routes/rd.js";
 import { logger, setLogLevel } from "./utils/logger.js";
 
 const SESSION_SLIDING_MAX_AGE_MS = 30 * 60 * 1000;
@@ -111,6 +114,9 @@ export async function buildApp() {
   await app.register(workflowRoutes);
   await app.register(rtecRoutes);
   await app.register(adminRtecGroupsRoutes);
+  await app.register(budgetRoutes);
+  await app.register(accountingRoutes);
+  await app.register(rdRoutes);
 
   // 8. Error handlers
   app.setErrorHandler((error, _request, reply) => {

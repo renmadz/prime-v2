@@ -150,24 +150,35 @@ export default async function proposalsRoutes(fastify: FastifyInstance) {
       const isApplicant = currentUser.roles.includes("APPLICANT") &&
         currentUser.roles.every((r) => r === "APPLICANT");
       const isAdmin = currentUser.roles.includes("ADMIN");
-      const isFocalOnly = currentUser.roles.includes("PROJECT_FOCAL") && !isAdmin;
+
+      // Assignment-scoped staff roles (Roles-and-Permissions §3.1: "Assigned").
+      // A user may hold more than one of these simultaneously — union their
+      // scopes rather than picking just one, so a dual-role user sees every
+      // proposal assigned to them under any held role.
+      // REGIONAL_DIRECTOR is deliberately excluded: Roles-and-Permissions §3.1
+      // marks RD as "✅" (unconditional), not "Assigned", so RD falls through
+      // to the unfiltered branch below, same as ADMIN.
+      const ASSIGNMENT_SCOPED_ROLES = ["PROJECT_FOCAL", "BUDGET_OFFICER", "ACCOUNTANT"];
+      const assignmentScopedRoles = currentUser.roles.filter((r) =>
+        ASSIGNMENT_SCOPED_ROLES.includes(r),
+      );
 
       let whereClause: Prisma.ProposalWhereInput | undefined = undefined;
 
       if (isApplicant) {
         whereClause = { applicantUserId: currentUser.id };
-      } else if (isFocalOnly) {
+      } else if (!isAdmin && assignmentScopedRoles.length > 0) {
         whereClause = {
           assignments: {
             some: {
               userId: currentUser.id,
-              roleCode: "PROJECT_FOCAL",
+              roleCode: { in: assignmentScopedRoles },
               isActive: true,
             },
           },
         };
       }
-      // ADMIN and other staff roles: no filter (see all)
+      // ADMIN and REGIONAL_DIRECTOR: no filter (see all)
 
       const proposals = await prisma.proposal.findMany({
         where: whereClause,
@@ -276,6 +287,17 @@ export default async function proposalsRoutes(fastify: FastifyInstance) {
         return reply.status(409).send({
           error: "Conflict",
           message: "Version already submitted",
+        });
+      }
+
+      // Explicit finalized-status guard (Phase 12 SEC-1) — redundant with the
+      // isSubmitted check above for every status reachable today, but makes
+      // the Data Dictionary §4 invariant literal rather than incidental.
+      if (proposal.isLocked) {
+        return reply.status(409).send({
+          error: "Conflict",
+          code: "PROPOSAL_FINALIZED",
+          message: "This proposal has been finalized and cannot be modified",
         });
       }
 
