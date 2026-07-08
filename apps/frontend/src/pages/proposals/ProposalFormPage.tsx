@@ -38,6 +38,11 @@ export default function ProposalFormPage() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against React 18 StrictMode's dev-mode double-invoke of mount
+  // effects, which otherwise fires POST /api/proposals twice and creates an
+  // orphaned draft. Also protects against any real re-entry (slow nav,
+  // double-click) in production.
+  const hasCreated = useRef(false);
 
   useEffect(() => {
     if (!typeId) {
@@ -45,6 +50,9 @@ export default function ProposalFormPage() {
       setLoading(false);
       return;
     }
+
+    if (hasCreated.current) return;
+    hasCreated.current = true;
 
     async function init() {
       try {

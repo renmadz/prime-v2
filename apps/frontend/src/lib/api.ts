@@ -234,6 +234,28 @@ export const phase9Api = {
     request<ProposalVersionSummary[]>('GET', `/api/proposals/${proposalId}/versions`),
 };
 
+// ── Proposal assignments (Phase 21A, admin-only) ────────────────────────────────
+
+export interface ProposalAssignment {
+  id: string;
+  proposalId: string;
+  userId: string;
+  roleCode: string;
+  assignedAt: string;
+  assignedBy: string;
+  isActive: boolean;
+  user: { id: string; email: string; firstName: string; lastName: string };
+}
+
+export const assignmentsApi = {
+  list: (proposalId: string) =>
+    request<ProposalAssignment[]>('GET', `/api/proposals/${proposalId}/assignments`),
+  create: (proposalId: string, body: { userId: string; roleCode: string }) =>
+    request<ProposalAssignment>('POST', `/api/proposals/${proposalId}/assignments`, body),
+  remove: (proposalId: string, assignmentId: string) =>
+    request<ProposalAssignment>('DELETE', `/api/proposals/${proposalId}/assignments/${assignmentId}`),
+};
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface NotificationItem {

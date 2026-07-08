@@ -504,6 +504,87 @@ async function main() {
   console.log(
     `✓ Phase 12: budget1, accountant1, rd1 dev users seeded (password: ${PHASE12_DEV_PASSWORD} — DEV ONLY)`,
   );
+
+  // ── Phase 21A: SUBMITTED_TO_FOCAL demo proposal + focal ProposalAssignment ───
+  // Unblocks the focal queue and workflow actions for focal@dev.local, which
+  // otherwise 403 with NOT_ASSIGNED (see TEST-MATRIX.md § Phase 21A).
+  const applicantUser = await prisma.user.findUniqueOrThrow({
+    where: { email: "applicant@dev.local" },
+  });
+  const focalUser = await prisma.user.findUniqueOrThrow({
+    where: { email: "focal@dev.local" },
+  });
+  const giaProposalType = await prisma.proposalType.findUniqueOrThrow({
+    where: { code: "GIA-PROPOSAL" },
+  });
+
+  let focalDemoProposal = await prisma.proposal.findFirst({
+    where: { status: "SUBMITTED_TO_FOCAL", proposalTypeId: giaProposalType.id },
+  });
+
+  if (!focalDemoProposal) {
+    const giaFormVersion = await prisma.formTemplateVersion.findFirstOrThrow({
+      where: { formTemplateId: giaProposalType.defaultFormTemplateId!, isCurrent: true },
+    });
+
+    const created = await prisma.proposal.create({
+      data: {
+        applicantUserId: applicantUser.id,
+        proposalTypeId: giaProposalType.id,
+        status: "SUBMITTED_TO_FOCAL",
+        title: "Seeded GIA Proposal — Focal Demo",
+        submittedAt: new Date(),
+      },
+    });
+
+    const version = await prisma.proposalVersion.create({
+      data: {
+        proposalId: created.id,
+        versionNumber: 1,
+        formTemplateVersionId: giaFormVersion.id,
+        createdBy: applicantUser.id,
+        statusAtCreation: "DRAFT",
+        isSubmitted: true,
+        submittedAt: new Date(),
+      },
+    });
+
+    focalDemoProposal = await prisma.proposal.update({
+      where: { id: created.id },
+      data: { currentVersionId: version.id },
+    });
+  }
+
+  const existingFocalAssignment = await prisma.proposalAssignment.findFirst({
+    where: {
+      proposalId: focalDemoProposal.id,
+      userId: focalUser.id,
+      roleCode: "PROJECT_FOCAL",
+    },
+  });
+
+  if (existingFocalAssignment) {
+    if (!existingFocalAssignment.isActive) {
+      await prisma.proposalAssignment.update({
+        where: { id: existingFocalAssignment.id },
+        data: { isActive: true },
+      });
+    }
+  } else {
+    await prisma.proposalAssignment.create({
+      data: {
+        proposalId: focalDemoProposal.id,
+        userId: focalUser.id,
+        roleCode: "PROJECT_FOCAL",
+        assignedBy: adminUser.id,
+        isActive: true,
+      },
+    });
+  }
+
+  console.log(
+    `✓ Phase 21A: focal@dev.local assigned as PROJECT_FOCAL on proposal ${focalDemoProposal.id} (${focalDemoProposal.title})`,
+  );
 }
 
 main()

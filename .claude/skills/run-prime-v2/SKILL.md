@@ -30,9 +30,7 @@ test -f .env || cp .env.example .env
 # 2. Build images and start every service in the background.
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
-# 3. Wait ~15s for health checks, then confirm both are actually serving
-#    (see Gotchas — the Docker healthcheck itself is broken and will show
-#    "unhealthy" even when the app is fine; curl is the real signal).
+# 3. Wait ~15-20s for health checks, then confirm both are actually serving.
 curl -s http://localhost:3000/health
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5173
 ```
@@ -86,6 +84,8 @@ Flows (pass one as `argv[2]` instead of `all` to run just that one):
 | `login-admin` | Staff-login as `admin@dev.local`, screenshot `/dashboard` |
 | `new-proposal` | Staff-login as `applicant@dev.local`, screenshot `/proposals/new` |
 | `focal-queue` | Staff-login as `focal@dev.local`, screenshot `/queue` |
+| `submit-gia` | Staff-login as `applicant@dev.local`, fills every visible field on a GIA proposal generically, saves, submits, screenshots the result |
+| `admin-users` | Staff-login as `admin@dev.local`, screenshot `/admin/users` |
 
 Each flow uses its own `browser.newContext()` — **do not** reuse one `page`
 across accounts (see Gotchas: the login page hard-redirects an authenticated
@@ -111,7 +111,7 @@ npm approve-scripts --all        # only needed once — npm 11+ blocks postinsta
                                   # scripts (prisma generate, esbuild) by default
 npx prisma generate
 npm run prisma:push:test         # schema → prime-postgres-test (port 5433)
-npm run test:local                # 75 tests, ~30s
+npm run test:local                # 120 tests, ~55s
 
 # Frontend
 cd apps/frontend
@@ -120,7 +120,7 @@ npm approve-scripts --all
 npx vitest run                    # 7 tests, ~3s
 ```
 
-All 82 tests (75 backend + 7 frontend) passed in this environment.
+All 127 tests (120 backend + 7 frontend) passed in this environment (2026-07-08).
 
 ## Stop
 
@@ -133,14 +133,39 @@ Add `-v` only if you intentionally want to wipe the Postgres/MinIO volumes
 
 ## Gotchas
 
-- **Docker healthcheck is broken, not the app.** `docker ps` will show
-  `prime-backend`/`prime-frontend` as `unhealthy` forever. The container's
-  healthcheck shells out to `curl`, but the dev Compose override
-  (`docker-compose.dev.yml`) runs the `builder` image stage, which never
-  installs `curl`. Confirmed via
-  `docker inspect prime-backend --format '{{json .State.Health}}'` →
-  `"exec: \"curl\": executable file not found in $PATH"`. Ignore the
-  `unhealthy` label; use the `curl`-from-host checks above instead.
+- **Editing a file on the host does NOT reliably reload `tsx watch` /
+  Vite HMR inside the container on this Windows + Docker Desktop setup.**
+  This is the single most time-costly gotcha in this repo. Both the backend
+  (`tsx watch src/server.ts`) and frontend (Vite dev server) are supposed to
+  pick up bind-mounted source changes automatically, but inotify events from
+  Windows-host file writes don't always propagate through Docker Desktop's
+  file-sharing layer into the Linux container's watcher. Symptoms seen this
+  session: (1) added `assignments.ts` + registered it in `app.ts` — the new
+  route 404'd until `docker compose restart prime-backend`; (2) edited
+  `ProposalFormPage.tsx` to add a `useRef` guard — `curl`'ing the Vite-served
+  source (`curl http://localhost:5173/src/pages/.../ProposalFormPage.tsx`)
+  still showed the *old* code with zero occurrences of the new ref, even
+  though `docker exec ... cat` on the same in-container path showed the
+  *correct*, up-to-date content (so the bind mount itself was fine — only
+  the dev server's live-reload/watch was stale). **After any backend or
+  frontend source edit that must take effect, don't trust hot-reload —
+  verify directly** (`curl` the API route, or `curl` the raw Vite module
+  source and grep for a distinctive new string) **and if stale, force it:**
+  `docker compose -f docker-compose.yml -f docker-compose.dev.yml restart prime-backend`
+  (or `prime-frontend`). This is fast (~3-5s) — cheaper than debugging a
+  phantom "my fix didn't work" for ten minutes.
+
+- **Docker healthcheck was broken as of the first version of this skill —
+  now fixed upstream.** `docker-compose.yml` previously shelled out to
+  `curl`, which isn't installed in the `builder` stage the dev override
+  uses, so `prime-backend`/`prime-frontend` always showed `unhealthy` even
+  when fine. This has since been fixed to use `wget` (busybox-provided,
+  always present) against `127.0.0.1` (not `localhost`, which resolves to
+  `::1` first and these services only bind IPv4). If you ever see
+  `unhealthy` again, the containers were probably started before a compose
+  file change — `docker compose up -d` **recreates** (not just restarts)
+  containers whose config changed; a plain `restart` does not pick up a
+  compose-file healthcheck edit.
 
 - **Stale containers left over from a previous `docker compose up` (no
   `-f docker-compose.dev.yml`) will crash-loop.** Symptom:

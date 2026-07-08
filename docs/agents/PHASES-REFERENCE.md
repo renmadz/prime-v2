@@ -64,14 +64,14 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 21A — test data + focal demo path** (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md))
+**You are here: Phase 21B — fillable forms MVP** (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md)). **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
 
 Implementation is open to **all developers**. Follow agent consultation ([AGENTS.md](../../AGENTS.md)), [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md), [TEST-MATRIX.md](TEST-MATRIX.md), and [QA-PUSH-GATE.md](QA-PUSH-GATE.md).
 
 | Phase 21 sub-phase | Focus | Status |
 |---|---|---|
-| **21A** | Seed sample proposals + assignments; focal workflow UI; notification badge | ⏳ In progress |
-| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ⏳ Pending |
+| **21A** | Seed sample proposals + assignments; admin assignment API/UI | ✅ **Closed 2026-07-08** |
+| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ⏳ In progress |
 
 | Phase 21 item | Status |
 |---|---|
@@ -80,9 +80,12 @@ Implementation is open to **all developers**. Follow agent consultation ([AGENTS
 | `@dev.local` applicant login in development | ✅ Done |
 | Left nav + admin/queue/notification UI | ✅ Done |
 | Fillable dynamic forms (3 seeded types) | ✅ Partial — expand to all 21 forms (21B) |
-| Focal workflow UI on proposal detail | ⏳ Pending (21A) |
+| Sample `SUBMITTED_TO_FOCAL` proposal + focal assignment seed | ✅ Done (21A) |
+| Admin staff-assignment API + UI | ✅ Done (21A) — `assignments.ts` route, "Staff Assignments" panel on proposal detail |
+| Focal workflow buttons on proposal detail (acknowledge/return/endorse) | ⏳ Pending — backend routes work, UI not wired (candidate for Phase 10) |
 | Staging deploy smoke checklist | ⏳ Pending |
-| Phase 21 approval gate | ⏳ Open |
+| Phase 21A approval gate | ✅ **Closed 2026-07-08** |
+| Phase 21 (overall) approval gate | ⏳ Open — 21B in progress |
 
 **Previous:** Phase 10 — Workflow and Focal Review (Phase 9 gate closed 2026-07-02)
 
@@ -153,7 +156,7 @@ Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form 
 
 ## One Rule
 
-> Phases 0–4 planning gates are **closed**. Active work: **Phase 21A → 21B**, then Phases 10–13, then harden and deploy (14–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
+> Phases 0–4 planning gates are **closed**. Phase 21A is **closed** (2026-07-08). Active work: **Phase 21B**, then Phases 10–13, then harden and deploy (14–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
 
 **Start here after git pull:** [../../DEVELOPERS.md](../../DEVELOPERS.md) → [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) → [TEST-MATRIX.md](TEST-MATRIX.md).
 

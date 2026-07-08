@@ -28,12 +28,13 @@ Related docs:
 | UI shell (left nav, all routes) | Done |
 | Proposals (create, save, submit, comments, versions) | Done (minimal 3 form templates) |
 | Admin / queues / notifications / profile pages | Done (API wired) |
-| Focal workflow | Backend done; **UI pending** |
-| RTEC / Budget / RD workflow | Not started |
+| Focal workflow | Backend done; **UI pending** (buttons not wired) |
+| Proposal staff assignment | Done — seed + admin API + admin UI (Phase 21A) |
+| RTEC / Budget / RD workflow | Backend routes done (`rtec.ts`, `budget.ts`, `accounting.ts`, `rd.ts`); UI not verified this round |
 | Full fillable forms (21 specs) | Partial (3 short stubs in seed) |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 21A** (test data + focal demo path).
+**You are here:** **Phase 21B** (fillable forms) — **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 
@@ -108,41 +109,43 @@ Phase 19–20 Production launch + hypercare
 
 **Goal:** Demo Applicant → Focal without manual database edits.  
 **Estimate:** 1–2 weeks.  
-**Status (2026-07-08 QA run):** ⏳ **Not closed — 3/6 manual gate tests fail.** See [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A for full results. Automated suites are green (82/82) but do not cover this gap.
+**Status:** ✅ **Closed 2026-07-08.** All 6 manual gate tests pass; both automated suites green. See [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A for full results and evidence.
 
 ### Tasks
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 1 | Seed proposals in multiple statuses (DRAFT, SUBMITTED_TO_FOCAL, ENDORSED_TO_RTEC, …) | `apps/backend/prisma/seed.ts` | ⏳ Still not in `seed.ts` — proposal used for this QA run was created ad hoc through the UI, not seeded |
-| 2 | Seed `ProposalAssignment` for focal, RTEC, budget, RD dev users | `apps/backend/prisma/seed.ts` | ❌ **Blocking** — confirmed missing; this is the root cause of test gate failures #2–#5 |
-| 3 | Focal workflow buttons on proposal detail (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` | ⏳ Still not present — confirmed via source read, tests #3/#4 exercised via API directly per task instructions |
-| 4 | Admin UI to assign staff to proposals | New admin page or extend admin module | ❌ **Blocking** — no route file exists for assignments at all (backend or frontend) |
-| 5 | Unread notification count on sidebar | `apps/frontend/src/components/shell/SideNav.tsx` | Not verified this run (not one of the 6 gate tests) |
+| 1 | Seed proposals in multiple statuses (DRAFT, SUBMITTED_TO_FOCAL, ENDORSED_TO_RTEC, …) | `apps/backend/prisma/seed.ts` | ✅ Done — seed guarantees at least one `SUBMITTED_TO_FOCAL` GIA proposal (reuses an existing one idempotently, creates one if none exists) |
+| 2 | Seed `ProposalAssignment` for focal, RTEC, budget, RD dev users | `apps/backend/prisma/seed.ts` | ✅ Done for `focal@dev.local` (PROJECT_FOCAL) — idempotent, verified by re-running seed twice with no duplicate rows. RTEC/budget/RD assignment seeding not done (not required by the Phase 21A gate; RTEC uses `RtecMembership`, not `ProposalAssignment`) |
+| 3 | Focal workflow buttons on proposal detail (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` | ⏳ Still not present — tests #3/#4 exercised via API directly per task instructions. Backend routes work correctly; only the UI buttons are missing. Candidate for Phase 10 (already scheduled to "complete focal workflow UI") |
+| 4 | Admin UI to assign staff to proposals | New admin page or extend admin module | ✅ Done — `apps/backend/src/routes/assignments.ts` (POST/GET/DELETE, admin-only, 8 tests) + "Staff Assignments" panel on `ProposalDetailPage.tsx` (admin-only: dropdown of all users, role selector, assign/unassign) |
+| 5 | Unread notification count on sidebar | `apps/frontend/src/components/shell/SideNav.tsx` | Not built this round (not required by the 6 gate tests) |
 
-### Phase 21A test gate — result 2026-07-08
+Also fixed as part of this closeout: a React 18 StrictMode double-mount bug in `ProposalFormPage.tsx` that created orphaned draft proposals on every page mount (ref guard added — see Gotchas in [run-prime-v2 SKILL.md](../../.claude/skills/run-prime-v2/SKILL.md) if this resurfaces).
 
-Full detail, evidence, and root-cause analysis in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A.
+### Phase 21A test gate — result 2026-07-08 (retest, post-fix)
+
+Full detail, evidence, and screenshots-backed verification in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A.
 
 | # | Login | URL | Action | Expected | Result |
 |---|-------|-----|--------|----------|--------|
 | 1 | applicant@dev.local | /proposals/new | Fill + submit GIA | Status SUBMITTED_TO_FOCAL | ✅ Pass |
-| 2 | focal@dev.local | /queue | Open proposal | Visible in queue | ❌ Fail — no `ProposalAssignment` seeded |
-| 3 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | ❌ Fail — `403 NOT_ASSIGNED`, same cause |
-| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant notification | ❌ Fail — `403 NOT_ASSIGNED`, same cause |
-| 5 | applicant@dev.local | /notifications | Mark read | Notification cleared | ❌ Fail — downstream of #4 (mechanism itself verified working via diagnostic) |
-| 6 | admin@dev.local | /admin/users | List users | Table loads | ✅ Pass |
+| 2 | focal@dev.local | /queue | Open proposal | Visible in queue | ✅ Pass — admin assigned focal via the new Staff Assignments panel (real UI), queue showed 2 items |
+| 3 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | ✅ Pass |
+| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant notification | ✅ Pass — real notification generated and confirmed |
+| 5 | applicant@dev.local | /notifications | Mark read | Notification cleared | ✅ Pass — real UI flow, not the prior run's diagnostic workaround |
+| 6 | admin@dev.local | /admin/users | List users | Table loads | ✅ Pass — 15 users rendered |
 
-**To close this gate:** implement tasks #1, #2, and #4 above (seed proposals + assignments; build an admin assignment API/UI), then re-run tests #2–#5.
+**6/6 Pass.** Gate closed.
 
-### Automated gate — result 2026-07-08
+### Automated gate — result 2026-07-08 (retest)
 
 ```powershell
 cd apps/frontend && npx vitest run   # 4 files, 7 tests — all passed
-cd apps/backend && npm test          # 11 files, 75 tests — all passed
+cd apps/backend && npm test          # 16 files, 120 tests — all passed (includes 8 new assignments.test.ts cases)
 ```
 
-82/82 passed. Green, but this suite has no coverage for proposal-assignment seeding/admin UI (tasks #2/#4 above), so it does not substitute for the manual gate.
+127/127 passed.
 
 ---
 

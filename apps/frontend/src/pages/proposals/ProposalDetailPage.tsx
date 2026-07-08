@@ -3,13 +3,19 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   api,
   phase9Api,
+  assignmentsApi,
+  adminApi,
   type AttachmentMeta,
   type ProposalDetail,
   type ProposalComment,
   type CommentPayload,
   type ProposalVersionSummary,
+  type ProposalAssignment,
+  type AdminUser,
 } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
+
+const ASSIGNABLE_ROLES = ["PROJECT_FOCAL", "BUDGET_OFFICER", "ACCOUNTANT"];
 
 interface DownloadResponse {
   url: string;
@@ -39,6 +45,15 @@ export default function ProposalDetailPage() {
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
 
+  // Admin: staff assignment panel state
+  const [assignments, setAssignments] = useState<ProposalAssignment[]>([]);
+  const [assignableUsers, setAssignableUsers] = useState<AdminUser[]>([]);
+  const [assignUserId, setAssignUserId] = useState("");
+  const [assignRoleCode, setAssignRoleCode] = useState(ASSIGNABLE_ROLES[0]);
+  const [assigning, setAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [unassigningId, setUnassigningId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) {
       setError("Missing proposal ID.");
@@ -64,6 +79,21 @@ export default function ProposalDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const loadAssignments = () => {
+    if (!id) return;
+    assignmentsApi.list(id).then(setAssignments).catch(() => setAssignments([]));
+  };
+
+  useEffect(() => {
+    if (!id || role !== "ADMIN") return;
+    loadAssignments();
+    adminApi
+      .listUsers(false)
+      .then(setAssignableUsers)
+      .catch(() => setAssignableUsers([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, role]);
 
   async function handleDownload(attachmentId: string) {
     if (!id) return;
@@ -143,6 +173,34 @@ export default function ProposalDetailPage() {
       setResubmitError(err instanceof Error ? err.message : "Resubmit failed.");
     } finally {
       setResubmitting(false);
+    }
+  }
+
+  async function handleAssign() {
+    if (!id || !assignUserId) return;
+    setAssignError(null);
+    setAssigning(true);
+    try {
+      await assignmentsApi.create(id, { userId: assignUserId, roleCode: assignRoleCode });
+      setAssignUserId("");
+      loadAssignments();
+    } catch (err: unknown) {
+      setAssignError(err instanceof Error ? err.message : "Failed to assign staff.");
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  async function handleUnassign(assignmentId: string) {
+    if (!id) return;
+    setUnassigningId(assignmentId);
+    try {
+      await assignmentsApi.remove(id, assignmentId);
+      loadAssignments();
+    } catch {
+      // silent — assignment stays in the list, admin can retry
+    } finally {
+      setUnassigningId(null);
     }
   }
 
@@ -297,6 +355,177 @@ export default function ProposalDetailPage() {
         <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "1rem" }}>
           {resubmitError}
         </p>
+      )}
+
+      {/* Admin: staff assignment panel */}
+      {isAdmin && (
+        <section
+          aria-label="Staff assignments"
+          style={{ marginBottom: "2rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", padding: "1rem" }}
+        >
+          <h3
+            style={{
+              margin: "0 0 0.75rem 0",
+              fontSize: "1rem",
+              fontWeight: 600,
+              borderBottom: "1px solid #e5e7eb",
+              paddingBottom: "0.5rem",
+            }}
+          >
+            Staff Assignments
+          </h3>
+
+          {assignments.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "1rem" }}>
+              No staff assigned to this proposal yet.
+            </p>
+          ) : (
+            <ul style={{ listStyle: "none", margin: "0 0 1rem 0", padding: 0 }}>
+              {assignments.map((a) => (
+                <li
+                  key={a.id}
+                  role="listitem"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "0.75rem",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "0.375rem",
+                    marginBottom: "0.5rem",
+                    gap: "1rem",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: "0 0 0.125rem 0", fontWeight: 500, fontSize: "0.875rem" }}>
+                      {a.user.firstName} {a.user.lastName}{" "}
+                      <span style={{ fontWeight: 400, color: "#6b7280" }}>({a.user.email})</span>
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.75rem", color: "#9ca3af" }}>{a.roleCode}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleUnassign(a.id)}
+                    disabled={unassigningId === a.id}
+                    aria-label={`Unassign ${a.user.firstName} ${a.user.lastName}`}
+                    style={{
+                      minHeight: "44px",
+                      padding: "0.5rem 1rem",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "0.375rem",
+                      backgroundColor: "#fff",
+                      cursor: unassigningId === a.id ? "not-allowed" : "pointer",
+                      fontSize: "0.8125rem",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {unassigningId === a.id ? "Removing…" : "Unassign"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.375rem",
+              padding: "0.75rem",
+            }}
+          >
+            <div style={{ flex: "1 1 200px" }}>
+              <label
+                htmlFor="assign-user"
+                style={{ display: "block", marginBottom: "0.25rem", fontWeight: 500, fontSize: "0.8125rem" }}
+              >
+                Staff member
+              </label>
+              <select
+                id="assign-user"
+                aria-label="Select staff member to assign"
+                value={assignUserId}
+                onChange={(e) => setAssignUserId(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: "44px",
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <option value="">— Select staff —</option>
+                {assignableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.firstName} {u.lastName} ({u.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ flex: "0 1 180px" }}>
+              <label
+                htmlFor="assign-role"
+                style={{ display: "block", marginBottom: "0.25rem", fontWeight: 500, fontSize: "0.8125rem" }}
+              >
+                Role
+              </label>
+              <select
+                id="assign-role"
+                aria-label="Select role for assignment"
+                value={assignRoleCode}
+                onChange={(e) => setAssignRoleCode(e.target.value)}
+                style={{
+                  width: "100%",
+                  minHeight: "44px",
+                  padding: "0.5rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                {ASSIGNABLE_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleAssign()}
+              disabled={assigning || !assignUserId}
+              aria-label="Assign staff to proposal"
+              style={{
+                minHeight: "44px",
+                padding: "0.5rem 1rem",
+                border: "none",
+                borderRadius: "0.375rem",
+                backgroundColor: "#2563eb",
+                color: "#fff",
+                cursor: assigning || !assignUserId ? "not-allowed" : "pointer",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                opacity: assigning || !assignUserId ? 0.6 : 1,
+              }}
+            >
+              {assigning ? "Assigning…" : "Assign"}
+            </button>
+          </div>
+
+          {assignError && (
+            <p role="alert" style={{ color: "#dc2626", fontSize: "0.8125rem", margin: "0.75rem 0 0 0" }}>
+              {assignError}
+            </p>
+          )}
+        </section>
       )}
 
       {/* Field values */}

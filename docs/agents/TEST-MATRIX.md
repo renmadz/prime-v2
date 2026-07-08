@@ -21,39 +21,57 @@
 
 | # | Command | Expected | Pass | Fail |
 |---|---------|----------|:----:|:----:|
-| A1 | `cd apps/frontend && npx vitest run` | All tests green | [ ] | [ ] |
-| A2 | `cd apps/backend && npm test` | All tests green | [ ] | [ ] |
-| A3 | `cd apps/frontend && npx tsc -b` | No type errors | [ ] | [ ] |
-| A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [ ] | [ ] |
+| A1 | `cd apps/frontend && npx vitest run` | All tests green | [x] | [ ] |
+| A2 | `cd apps/backend && npm test` | All tests green | [x] | [ ] |
+| A3 | `cd apps/frontend && npx tsc -b` | No type errors | [x] | [ ] |
+| A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [x] | [ ] |
+
+Last run 2026-07-08: A1 7/7 tests (4 files), A2 120/120 tests (16 files, includes 8 new `assignments.test.ts` cases), A3 clean, A4 confirmed.
 
 ---
 
 ## Phase 21A — Integration smoke (current priority)
 
-**Last executed:** 2026-07-08 by QA Agent (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) Phase 21A). Environment: local Docker stack, driven via [run-prime-v2 skill](../../.claude/skills/run-prime-v2/SKILL.md) (Playwright for UI flows, curl for API-only flows).
+**Last executed:** 2026-07-08 (retest, post-fix) by QA Agent (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) Phase 21A). Environment: local Docker stack, driven via [run-prime-v2 skill](../../.claude/skills/run-prime-v2/SKILL.md) (Playwright for UI flows, curl for API-only flows).
+
+**Blockers fixed since the 2026-07-08 (first run, 3/6 Pass) attempt:**
+- Seeded a `SUBMITTED_TO_FOCAL` proposal + idempotent `ProposalAssignment` for `focal@dev.local` (`apps/backend/prisma/seed.ts`)
+- Built admin assignment API (`apps/backend/src/routes/assignments.ts`, 8 tests in `assignments.test.ts`) and UI panel (`ProposalDetailPage.tsx` "Staff Assignments" section, admin-only)
+- Fixed a React 18 StrictMode double-mount bug that created orphaned draft proposals (`ProposalFormPage.tsx`, ref guard)
 
 | # | Login | URL | Action | Expected | Result | Pass | Fail |
 |---|-------|-----|--------|----------|--------|:----:|:----:|
-| 1 | applicant@dev.local | /proposals/new | Fill + submit GIA form | Status → SUBMITTED_TO_FOCAL | Confirmed via real browser flow + API check: proposal `ef941692-6e14-4219-9307-82f604ff1103` reached `SUBMITTED_TO_FOCAL`. Form Responses render on detail page. | [x] | [ ] |
-| 2 | focal@dev.local | /queue | Open proposal | Proposal visible in queue | `GET /api/queues/focal` → `{"count":0,"proposals":[]}` despite a SUBMITTED_TO_FOCAL proposal existing. **Root cause:** queue filters by `ProposalAssignment` (roleCode `PROJECT_FOCAL`, isActive) — none seeded, and no admin API/UI exists yet to create one (Phase 21A tasks "Seed ProposalAssignment…" and "Admin UI to assign staff" are both still ⏳ pending per [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md)). | [ ] | [x] |
-| 3 | focal@dev.local | /proposals/:id | Acknowledge | Status → UNDER_FOCAL_REVIEW | `POST .../workflow/acknowledge` → `403 {"code":"NOT_ASSIGNED"}`. Same root cause as #2 — `assertFocalAssignment` in `apps/backend/src/routes/workflow.ts` rejects before the status transition runs. | [ ] | [x] |
-| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant receives notification | `POST .../workflow/return-to-applicant` → `403 {"code":"NOT_ASSIGNED"}`. Same root cause as #2/#3. | [ ] | [x] |
-| 5 | applicant@dev.local | /notifications | Mark notification read | Notification cleared from list | As specified, blocked: #4 never ran, so no `PROPOSAL_RETURNED_TO_APPLICANT` notification exists to mark read (`GET /api/notifications` → `[]`). **Diagnostic isolation:** manually inserted a notification row and confirmed `POST /api/notifications/:id/read` → `isRead:true` and the UI correctly renders the "Read" badge — the mark-read mechanism itself is not broken, only unreachable via the intended trigger. Diagnostic row deleted after verification. | [ ] | [x] |
-| 6 | admin@dev.local | /admin/users | Load page | Users table renders with data | Confirmed via screenshot: table renders all 8 seeded accounts with correct name/email/role/status columns. | [x] | [ ] |
+| 1 | applicant@dev.local | /proposals/new | Fill + submit GIA form | Status → SUBMITTED_TO_FOCAL | Real browser flow: created "Phase 21A Gate Retest Proposal", filled fields, submitted. Confirmed `SUBMITTED_TO_FOCAL` on detail page. | [x] | [ ] |
+| 2 | focal@dev.local | /queue | Open proposal | Proposal visible in queue | Admin assigned `focal@dev.local` as PROJECT_FOCAL via the new **Staff Assignments** panel (real UI click, not API shortcut). Queue then showed **2 items** including the new proposal. | [x] | [ ] |
+| 3 | focal@dev.local | /proposals/:id | Acknowledge | Status → UNDER_FOCAL_REVIEW | `POST .../workflow/acknowledge` → `200 {"status":"UNDER_FOCAL_REVIEW"}`. (Focal action buttons are not yet wired to the UI — exercised directly via API per task instructions; the assignment blocker that caused this to 403 last run is resolved.) | [x] | [ ] |
+| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant receives notification | `POST .../workflow/return-to-applicant` → `200 {"status":"RETURNED_TO_APPLICANT"}`. `GET /api/notifications` for applicant confirmed a real `PROPOSAL_RETURNED_TO_APPLICANT` notification (not the prior run's diagnostic row). | [x] | [ ] |
+| 5 | applicant@dev.local | /notifications | Mark notification read | Notification cleared from list | Real UI flow: notification showed "Unread", clicked **Mark all read**, screenshot confirmed badge flipped to "Read". | [x] | [ ] |
+| 6 | admin@dev.local | /admin/users | Load page | Users table renders with data | Screenshot confirmed: 15 users (8 original + Phase 11/12 seed additions), all columns correct. | [x] | [ ] |
 
-**Verdict:** 3/6 Pass. All 3 failures (#2, #3, #4) trace to one root cause — no `ProposalAssignment` seed data and no assignment-creation API/UI yet. #5 fails only because it's downstream of #4. This matches the phase's own tracked-as-pending tasks; it is not a newly discovered regression. **Phase 21A cannot close until the assignment-seeding/admin-assignment-UI tasks are implemented** and #2–#5 are re-run.
+**Verdict: 6/6 Pass.** Automated gate also green — see below. **Phase 21A is closed.**
 
-### Legacy 21A rows (superseded by the numbered table above — kept for history)
+### History — first attempt, 2026-07-08 (3/6 Pass, superseded by the run above)
+
+| # | Login | Action | Result |
+|---|-------|--------|--------|
+| 1 | applicant | Fill + submit GIA | Pass |
+| 2 | focal | Open queue | Fail — `GET /api/queues/focal` returned 0 items; no `ProposalAssignment` seeded and no admin API/UI existed to create one |
+| 3 | focal | Acknowledge | Fail — `403 NOT_ASSIGNED`, same root cause |
+| 4 | focal | Return to applicant | Fail — `403 NOT_ASSIGNED`, same root cause |
+| 5 | applicant | Mark read | Fail — downstream of #4; diagnostic isolation confirmed the mark-read mechanism itself worked, only the trigger was unreachable |
+| 6 | admin | Users table | Pass |
+
+### Legacy 21A rows (superseded — kept for history)
 
 | # | Account | URL | Steps | Expected | Pass | Fail |
 |---|---------|-----|-------|----------|:----:|:----:|
 | 21A-1 | applicant@dev.local | / | Staff Login | Redirect to /dashboard | [x] | [ ] |
 | 21A-2 | applicant@dev.local | /proposals/new | Create GIA proposal, fill fields | Draft saves | [x] | [ ] |
 | 21A-3 | applicant@dev.local | /proposals/:id | Submit | Status SUBMITTED_TO_FOCAL | [x] | [ ] |
-| 21A-4 | focal@dev.local | /queue | Open queue | Submitted proposal listed | [ ] | [x] |
-| 21A-5 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [ ] | [x] |
-| 21A-6 | focal@dev.local | /proposals/:id | Return to applicant + comment | RETURNED_TO_APPLICANT | [ ] | [x] |
-| 21A-7 | applicant@dev.local | /notifications | View notification | Proposal returned alert | [ ] | [x] |
+| 21A-4 | focal@dev.local | /queue | Open queue | Submitted proposal listed | [x] | [ ] |
+| 21A-5 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [x] | [ ] |
+| 21A-6 | focal@dev.local | /proposals/:id | Return to applicant + comment | RETURNED_TO_APPLICANT | [x] | [ ] |
+| 21A-7 | applicant@dev.local | /notifications | View notification | Proposal returned alert | [x] | [ ] |
 | 21A-8 | admin@dev.local | /admin/users | List / create user | Table works | [x] | [ ] |
 
 ---

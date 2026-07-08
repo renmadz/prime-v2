@@ -21,6 +21,7 @@ import submissionRoutes from "./routes/submission.js";
 import commentsRoutes from "./routes/comments.js";
 import versionsRoutes from "./routes/versions.js";
 import workflowRoutes from "./routes/workflow.js";
+import assignmentsRoutes from "./routes/assignments.js";
 import rtecRoutes from "./routes/rtec.js";
 import adminRtecGroupsRoutes from "./routes/adminRtecGroups.js";
 import budgetRoutes from "./routes/budget.js";
@@ -117,6 +118,7 @@ export async function buildApp() {
   await app.register(commentsRoutes);
   await app.register(versionsRoutes);
   await app.register(workflowRoutes);
+  await app.register(assignmentsRoutes);
   await app.register(rtecRoutes);
   await app.register(adminRtecGroupsRoutes);
   await app.register(budgetRoutes);
