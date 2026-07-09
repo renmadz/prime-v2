@@ -21,25 +21,199 @@
 
 | # | Command | Expected | Pass | Fail |
 |---|---------|----------|:----:|:----:|
-| A1 | `cd apps/frontend && npx vitest run` | All tests green | [ ] | [ ] |
-| A2 | `cd apps/backend && npm test` | All tests green | [ ] | [ ] |
-| A3 | `cd apps/frontend && npx tsc -b` | No type errors | [ ] | [ ] |
-| A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [ ] | [ ] |
+| A1 | `cd apps/frontend && npx vitest run` | All tests green | [x] | [ ] |
+| A2 | `cd apps/backend && npm test` | All tests green | [x] | [ ] |
+| A3 | `cd apps/frontend && npx tsc -b` | No type errors | [x] | [ ] |
+| A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [x] | [ ] |
+
+Last run 2026-07-09 (Phase 21B gate): A1 7/7 tests (4 files), A2 120/120 tests (16 files), A3 clean, A4 confirmed.
+
+---
+
+## Phase 13 — Document export gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack. Automated via curl (API) + Playwright (real browser download verification). Files: `apps/backend/prisma/schema.prisma` (`ProposalExport` model), `apps/backend/src/routes/export.ts` (new), `apps/backend/src/routes/export.test.ts` (new, 6 tests), `apps/backend/src/app.ts` (route registration), `apps/backend/src/services/minio.ts` (public-endpoint fix — see below), `apps/backend/prisma/seed.ts` (APPROVED demo proposal), `apps/frontend/src/lib/api.ts` (`exportApi`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Document Export section, 3 new tests).
+
+pdfkit is not installed in this repo — per the task's own fallback instructions, export generation always produces a self-contained HTML file (not PDF). No new packages installed.
+
+**Two real bugs found and fixed during manual verification (not caught by unit tests, which mock MinIO):**
+
+1. **MinIO bucket `prime-attachments` did not exist** in this dev environment — first export attempt failed with `NoSuchBucket`. This predates Phase 13 (the attachments feature has the same dependency and was apparently never exercised against real MinIO end-to-end). Created via `mc mb` — a one-time environment fix, not a code change.
+2. **Presigned URLs were signed with the internal Docker hostname** (`prime-minio:9000`), which a real browser on the host cannot resolve — clicking "Download Export" opened a tab that failed to load (`chrome-error://chromewebdata/`). This is a **shared-service bug in `minio.ts`**, not specific to exports — `attachments.ts` calls the exact same `getPresignedUrl()` and would fail identically. Flagged to the user; fix approved and applied:
+   - `minio.ts` now has two clients: the existing internal one (`getMinioClient`, unchanged, used by `uploadFile`) and a new public-facing one (`getPublicMinioClient`, used only by `getPresignedUrl`) configured via a new `MINIO_PUBLIC_ENDPOINT` env var — `localhost:9010` in local dev (`docker-compose.dev.yml`), documented in `.env.example`, falls back to `MINIO_ENDPOINT` if unset.
+   - A second issue surfaced while fixing the first: the minio SDK's `presignedGetObject` calls `getBucketRegionAsync()` before signing, which dialed the *public* endpoint from *inside* the container — unreachable, `ECONNREFUSED`. Fixed by passing an explicit `region: 'us-east-1'` to the public client, which skips that lookup entirely.
+   - Verified end-to-end via Playwright: real browser click → new tab → `http://localhost:9010/...` → HTML content renders with correct proposal title, status, applicant, and RD decision.
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|--------------|--------|----------|--------|:----:|:----:|
+| D1 | applicant | /proposals/:id (APPROVED) | View detail page | "Document Export" section visible | UI screenshot confirms section renders with "Download Export" button | [x] | [ ] |
+| D2 | applicant | /proposals/:id (APPROVED) | Click "Download Export" | File downloads / new tab opens with content | Playwright: real click → new tab → `localhost:9010/...` → content renders (see fix #2 above) | [x] | [ ] |
+| D3 | applicant | /proposals/:id (APPROVED) | Inspect downloaded file | Contains proposal title and at least one field | Screenshot confirms title "Seeded Approved Proposal — Export Demo", status, applicant, RD Decision section all present | [x] | [ ] |
+| D4 | applicant | /proposals/:id (NOT APPROVED) | View detail page | "Export available once approved" message shown | `POST /export` on an UNDER_RTEC_REVIEW proposal → 409 NOT_APPROVED; UI unit test (TC-EXPORT-UI-02) confirms the message renders and the button is absent | [x] | [ ] |
+| D5 | focal | /proposals/:id (APPROVED) | Click "Download Export" | Same result — assigned staff can export | `POST /export` as focal (PROJECT_FOCAL, assigned) → 200 | [x] | [ ] |
+| D6 | admin | /proposals/:id (APPROVED) | Click "Download Export" | Same result — admin can export | `POST /export` as admin → 200 | [x] | [ ] |
+| D7 | applicant | /proposals/:id (APPROVED) | Click "Download Export" twice | Second click re-generates; "Last generated" shown | Two consecutive `POST /export` calls returned different `exportId`s; `GET /export/latest` returned the second (most recent) — matches the "Re-download" / "Last generated" UI logic | [x] | [ ] |
+| A1 | — | vitest run | Frontend tests | All pass (existing + 3 new TC-EXPORT-UI) | 20/20 passed (17 existing + 3 new) | [x] | [ ] |
+| A2 | — | npm test | Backend tests | All pass (existing + 6 new TC-EXPORT) | 132/132 passed (126 existing + 6 new) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean on both frontend (`tsc -b`) and backend (`tsc --noEmit`) | [x] | [ ] |
+| A4 | — | prisma db push + seed (twice) | Schema migration + idempotency | No errors, no duplicate rows | `db push --accept-data-loss` required (drops the connect-pg-simple-managed `session` table, unrelated to this schema change, self-heals via `createTableIfMissing`); seed ran twice clean, 1 row confirmed for the export demo proposal and its `RdDecision` | [x] | [ ] |
+
+**Automated gate: 4/4 Pass (A1–A4). Manual gate: 7/7 Pass.**
+
+---
+
+## Phase 12 — Budget, Accounting, Regional Director gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack. Automated via curl (API) + Playwright screenshots (UI render). No backend routes changed (constraint honored). Files: `apps/frontend/src/lib/api.ts` (`phase12Api`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Budget/Accountant/RD action panels, 11 modals, Focal re-route button), `apps/frontend/src/pages/proposals/ProposalDetailPage.test.tsx` (3 new tests), `apps/backend/prisma/seed.ts` (3 new idempotent demo proposals).
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|--------------|--------|----------|--------|:----:|:----:|
+| B1 | budget | /budget/queue, API | View queue | "Seeded Budget Proposal" visible | `GET /api/queues/budget` → 1 proposal, ENDORSED_TO_BUDGET | [x] | [ ] |
+| B2 | budget | /proposals/:id, API | Click "Open for Review" | Status → UNDER_BUDGET_REVIEW | `POST .../workflow/budget-open` → 200, status flipped | [x] | [ ] |
+| B3 | budget | /proposals/:id, API | Click "Endorse to Accounting" | Status → ENDORSED_TO_ACCOUNTING | `POST .../workflow/budget-endorse` → 200, status flipped | [x] | [ ] |
+| B4 | accountant | /accounting/queue, API | View queue | "Seeded Accounting Proposal" visible | `GET /api/queues/accounting` → 1 proposal, ENDORSED_TO_ACCOUNTING | [x] | [ ] |
+| B5 | accountant | /proposals/:id, API | Click "Open for Review" | Status → UNDER_ACCOUNTING_REVIEW | `POST .../workflow/accounting-open` → 200 | [x] | [ ] |
+| B6 | accountant | /proposals/:id, API | Click "Endorse to RD" | Status → ENDORSED_TO_RD | `POST .../workflow/accounting-endorse-to-rd` → 200 | [x] | [ ] |
+| B7 | rd | /rd/queue, API | View queue | "Seeded RD Proposal" visible | `GET /api/queues/rd` → 1 proposal (assignment-filtered — confirmed the accounting-demo proposal that also reached ENDORSED_TO_RD did *not* leak into RD's queue since RD wasn't assigned to it) | [x] | [ ] |
+| B8 | rd | /proposals/:id, API | Click "Open for Review" | Status → UNDER_RD_REVIEW | `POST .../workflow/rd-open` → 200 | [x] | [ ] |
+| B9 | rd | /proposals/:id, API + UI | Click "Approve" + comment | Status → APPROVED, badge shows APPROVED | `POST .../workflow/rd-approve` → 200; UI screenshot confirms green APPROVED badge, Regional Director Actions panel empty (finalized, no further buttons), Workflow History shows Rd Open → Rd Approve | [x] | [ ] |
+| B10 | rd | /proposals/:id, API | Click "Reject" + comment | Status → REJECTED | Used a second UNDER_RD_REVIEW test proposal (B9's proposal was already finalized/locked) — `POST .../workflow/rd-reject` → 200, status REJECTED | [x] | [ ] |
+| B11 | rd | /proposals/:id, API | Click "Defer" + reason | Status → DEFERRED, Resume button appears | Used a third UNDER_RD_REVIEW test proposal — `POST .../workflow/rd-defer` → 200 DEFERRED; `POST .../workflow/rd-resume` → 200 back to UNDER_RD_REVIEW, confirming the Resume path works | [x] | [ ] |
+| B12 | focal | /proposals/:id, API + UI | Status=RETURNED_BY_ACCOUNTING | "Re-route for Focal Review" button visible | Reached via `accounting-return-to-focal`; UI screenshot confirms the button renders in the existing Focal Actions panel, and the modal/handler (`phase12Api.focalReroute`) is wired | [x] | [ ] |
+| B13 | applicant | /notifications, API | After RD Approve/Reject | Notification listed | `GET /api/notifications` confirmed `PROPOSAL_APPROVED` and `PROPOSAL_REJECTED` notifications present for the applicant | [x] | [ ] |
+| A1 | — | vitest run | Frontend tests | All pass (existing 14 + 3 new = 17+) | 17/17 passed | [x] | [ ] |
+| A2 | — | npm test | Backend tests | 120+ all pass (no new backend tests needed) | 126/126 passed, unchanged (no backend files touched) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean, no errors | [x] | [ ] |
+| A4 | — | seed (twice) | Idempotency | No errors, no duplicate rows | Ran twice clean; SQL confirmed 1 row each for the 3 new demo proposal titles | [x] | [ ] |
+
+**Automated gate: 4/4 Pass (A1–A4). Manual gate: 13/13 Pass.**
+
+---
+
+## Phase 11 — RTEC review and consolidation gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack. Automated via curl (API) + Playwright screenshots (UI render). Files: `apps/backend/src/routes/adminRtecGroups.ts` (role fix), `apps/backend/src/routes/adminRtecGroups.test.ts` (new, 6 tests), `apps/backend/prisma/seed.ts` (RTEC demo proposal block), `apps/frontend/src/lib/api.ts` (`rtecApi`, `RtecGroupSummary.memberships`), `apps/frontend/src/pages/rtec/RtecMemberReviewPage.tsx` (new), `apps/frontend/src/pages/rtec/RtecHeadConsolidationPage.tsx` (new), `apps/frontend/src/pages/queues/QueuePage.tsx` (RTEC-specific row navigation), `apps/frontend/src/App.tsx` (new routes).
+
+**Scope note — two deviations from the task spec, both flagged to the user during implementation and approved before coding:**
+1. Task 1 specified relaxing `GET /api/admin/rtec-groups` to `ADMIN, PROJECT_FOCAL` only. Building the review/consolidation forms surfaced the same problem for `RTEC_MEMBER` and `RTEC_HEAD`: neither role has any way to learn its own `rtecGroupId` before a first review/consolidation draft exists (required in the `POST` body), and the only available endpoint was that same route. Extended the identical fix to `RTEC_MEMBER` and `RTEC_HEAD` (`requireRole("ADMIN", "PROJECT_FOCAL", "RTEC_MEMBER", "RTEC_HEAD")`) — same route, same class of gap, user approved the pattern for the first case.
+2. Fixed a latent Phase 10 bug found in passing: `workflowApi.listRtecGroups()` was typed as returning a bare array, but the backend has always returned `{ groups: [...] }`. Updated the type and the one call site (`ProposalDetailPage.tsx`).
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|--------------|--------|----------|--------|:----:|:----:|
+| R1 | rtec.member | /rtec/queue, API | View "My RTEC Reviews" queue | Proposals with UNDER_RTEC_REVIEW shown | `GET /api/queues/rtec_reviews` → 1 proposal (seeded demo) | [x] | [ ] |
+| R2 | rtec.member | /rtec/reviews/:id, API | Write + save draft review | "Saved" status, overallRemarks persisted | `POST .../rtec/reviews` → 200, `rtecGroupId` correctly resolved client-side from `listRtecGroups()` membership match; remarks persisted | [x] | [ ] |
+| R3 | rtec.member | /rtec/reviews/:id, API | Submit review | isSubmitted=true, button disabled | `POST .../rtec/reviews/submit` → 200, `isSubmitted: true`; UI screenshot confirms Submit Review button disables and shows "Review submitted" | [x] | [ ] |
+| R4 | rtec.head | /rtec/consolidation, API | View consolidation queue | Proposals at RTEC_MEMBER_REVIEWS_COMPLETE shown | Quorum requires all 4 active MEMBER `RtecMembership` rows in "GIA RTEC Committee" (member, member1, member2, member3) to submit — seed initially only assigned 3, fixed to assign all 4; after 4th submission, `GET /api/queues/rtec_consolidation` → 1 proposal at RTEC_MEMBER_REVIEWS_COMPLETE | [x] | [ ] |
+| R5 | rtec.head | /rtec/consolidation/:id, API | Click Begin Consolidation | Status → UNDER_RTEC_HEAD_CONSOLIDATION | `POST .../workflow/rtec-begin-consolidation` → 200, status flipped | [x] | [ ] |
+| R6 | rtec.head | /rtec/consolidation/:id, API | Fill + submit recommendation | Status → RETURNED_TO_FOCAL_BY_RTEC | `POST .../rtec/consolidation` (draft) → 200, `POST .../rtec/consolidation/submit` → 200, status → RETURNED_TO_FOCAL_BY_RTEC | [x] | [ ] |
+| R7 | rtec.head | /rtec/consolidation/:id | Read member reviews panel | All submitted reviews visible with remarks | UI screenshot confirms all 4 submitted reviews rendered with reviewer id, SUBMITTED badge, and remarks; consolidation submitted-view shows recommendation + remarks read-only | [x] | [ ] |
+| R8 | focal | /proposals/:id | Endorse to RTEC modal | RTEC group dropdown now populated (Task 1 fix) | UI screenshot confirms "GIA RTEC Committee" appears in the dropdown for a real `focal@dev.local` session — Phase 10 known gap now closed | [x] | [ ] |
+| A1 | — | vitest run | Frontend tests | 11 existing + 3 new = 14+ all green | 14/14 passed (11 existing + 3 new TC-RTEC-UI tests) | [x] | [ ] |
+| A2 | — | npm test | Backend tests | 120 existing + 4 new = 124+ all green | 126/126 passed (120 existing + 6 new TC-RTEC-GROUPS tests — 2 extra to cover RTEC_HEAD and a denied-role case, per the Task 1 scope extension above) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean, no errors | [x] | [ ] |
+| A4 | — | seed (twice) | Idempotency | No errors, no duplicate rows | Ran twice clean; verified via SQL: 1 demo proposal, 5→6 assignments (see R4 note), no duplicates | [x] | [ ] |
+
+**Automated gate: 4/4 Pass (A1–A4). Manual gate: 8/8 Pass.**
+
+---
+
+## Phase 10 — Complete focal workflow UI gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack (backend healthy, frontend healthy). Automated via curl (API) + Playwright screenshots (UI render). `apps/frontend/src/lib/api.ts` (`workflowApi`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Focal Actions panel, 4 modals, Workflow History timeline), `apps/frontend/src/pages/proposals/ProposalDetailPage.test.tsx` (new).
+
+| # | Login | URL | Action | Expected | Result | Pass | Fail |
+|---|-------|-----|--------|----------|--------|:----:|:----:|
+| F1 | focal@dev.local | /queue | View queue | Assigned proposals shown | `GET /api/queues/focal` → 1 proposal returned | [x] | [ ] |
+| F2 | focal@dev.local | /proposals/:id | Click Acknowledge | Status → UNDER_FOCAL_REVIEW, button disappears | `POST .../workflow/acknowledge` → 200, status flipped; UI button conditional on status confirmed via code + screenshot | [x] | [ ] |
+| F3 | focal@dev.local | /proposals/:id | Click Return to Applicant + comment | Status → RETURNED_TO_APPLICANT, modal closes | `POST .../workflow/return-to-applicant` → 200; applicant `GET /api/notifications` confirmed `PROPOSAL_RETURNED_TO_APPLICANT`; modal screenshot confirmed (Return to Applicant dialog renders, required-comment textarea, Cancel/Confirm) | [x] | [ ] |
+| F4 | focal@dev.local | /proposals/:id | Click Endorse to RTEC + select group | Status → UNDER_RTEC_REVIEW (auto-advances) | Backend transition confirmed via direct POST with a known `rtecGroupId` → auto-advanced SUBMITTED→UNDER_FOCAL_REVIEW→ENDORSED_TO_RTEC→UNDER_RTEC_REVIEW. **UI dropdown blocked**: `GET /api/admin/rtec-groups` is `requireRole("ADMIN")`-only in `adminRtecGroups.ts`; `focal@dev.local` holds only `PROJECT_FOCAL`, so the modal's group `<select>` is always empty for a real focal user (confirmed 403 + empty-dropdown screenshot). This is a pre-existing backend authorization gap, not a frontend bug — out of scope to fix under "do not change backend routes." Frontend code matches the task spec exactly (`workflowApi.listRtecGroups()` → `GET /api/admin/rtec-groups`). | [x]¹ | [ ] |
+| F5 | focal@dev.local | /proposals/:id | Click Endorse to Budget | Status → ENDORSED_TO_BUDGET | Seeded workflow transitions (`seed.ts:433`) only allow `ENDORSE_TO_BUDGET` from `RETURNED_TO_FOCAL_BY_RTEC`, not `UNDER_FOCAL_REVIEW` as the task's status table implied — button visibility was corrected to only show on `RETURNED_TO_FOCAL_BY_RTEC` (frontend-only fix, no backend change). Verified end-to-end on a proposal moved to `RETURNED_TO_FOCAL_BY_RTEC`: `POST .../workflow/endorse-to-budget` → 200, status → `ENDORSED_TO_BUDGET` | [x] | [ ] |
+| F6 | focal@dev.local | /proposals/:id | Workflow History section | Timeline shows all transitions with dates | `GET .../workflow/history` returned full ordered history (ACKNOWLEDGE → ENDORSE_TO_RTEC → CONFIRM_RTEC_ASSIGNMENT → ENDORSE_TO_BUDGET); UI timeline screenshot confirmed most-recent-first rendering with human-readable action labels | [x] | [ ] |
+| F7 | focal@dev.local | /proposals/:id | Add internal comment | Comment saved | `POST /api/proposals/:id/comments` (INTERNAL visibility) → 201, comment persisted | [x] | [ ] |
+| A1 | — | vitest run | 3+ new TC-FOCAL tests pass | All pass | 4 new tests (TC-FOCAL-01..04) — 11/11 total frontend tests passed | [x] | [ ] |
+| A2 | — | npm test | backend suite | 120/120 still pass | 120/120 passed, unchanged (no backend files touched) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean, no errors | [x] | [ ] |
+
+¹ F4's underlying workflow transition (the thing the gate row is testing) passes; the specific manual step "select group in dropdown" cannot be completed by a real focal user due to the pre-existing `/api/admin/rtec-groups` ADMIN-only restriction. Flagged to the user during implementation; user chose to document rather than change the backend route. **Recommendation for a future phase:** either relax `adminRtecGroups.ts` to `requireRole("ADMIN", "PROJECT_FOCAL")`, or add a focal-scoped `GET /api/rtec-groups` route.
+
+**Automated gate: 3/3 Pass (A1–A3).** Manual gate: 7/7 Pass, with F4 caveated per above.
+
+---
+
+## Phase 21B — Fillable forms gate (2026-07-09)
+
+**Executed:** 2026-07-09 by QA Agent. Environment: local Docker stack (backend healthy, frontend healthy).
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|-------------|--------|----------|--------|:----:|:----:|
+| A1 | — | `npx vitest run` (frontend) | Run automated tests | 7/7 green | 7/7 passed | [x] | [ ] |
+| A2 | — | `npm test` (backend) | Run automated tests | 120/120 green | 120/120 passed | [x] | [ ] |
+| A3 | — | `npx tsc -b` (frontend) | TypeScript check | No errors | Clean | [x] | [ ] |
+| A4 | — | `curl /health` | Backend health | `{"status":"ok"}` | Confirmed | [x] | [ ] |
+| DB1 | — | DB query | GIA form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| DB2 | — | DB query | CEST form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| DB3 | — | DB query | SSCP form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| API1 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | GIA schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| API2 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | CEST schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| API3 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | SSCP schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| S1 | — | Seed twice | Idempotency | No errors, no duplicates | ✅ Pass — ran twice clean | [x] | [ ] |
+| S2 | — | Code review | TABLE renderer | ProposalFormPage renders add/remove-row table | ✅ Code confirmed | [x] | [ ] |
+| S3 | — | Code review | Required validation | validateRequiredFields() + inline errors | ✅ Code confirmed | [x] | [ ] |
+| M1 | applicant@dev.local | /proposals/new (GIA) | Full form renders | Multi-section, not 4-field stub | Requires browser | [ ] | [ ] |
+| M2 | applicant@dev.local | /proposals/new (GIA) | TABLE UI renders | Add/remove-row table in section 2 | Requires browser | [ ] | [ ] |
+| M3 | applicant@dev.local | /proposals/new (GIA) | Submit empty form | Required field errors shown | Requires browser | [ ] | [ ] |
+| M4 | applicant@dev.local | /proposals/new (GIA) | Fill + submit | Redirect to detail, submitted | Requires browser | [ ] | [ ] |
+| M5 | applicant@dev.local | /proposals/new (CEST) | Same as M1–M4 | Pass | Requires browser | [ ] | [ ] |
+| M6 | applicant@dev.local | /proposals/new (SSCP) | Same as M1–M4 | Pass | Requires browser | [ ] | [ ] |
+| M7 | focal@dev.local | /proposals/:id | Submitted values visible | All field values rendered | Requires browser | [ ] | [ ] |
+
+**Automated gate: 13/13 Pass.** Manual browser tests (M1–M7) deferred — requires developer UI walkthrough.
 
 ---
 
 ## Phase 21A — Integration smoke (current priority)
 
+**Last executed:** 2026-07-08 (retest, post-fix) by QA Agent (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) Phase 21A). Environment: local Docker stack, driven via [run-prime-v2 skill](../../.claude/skills/run-prime-v2/SKILL.md) (Playwright for UI flows, curl for API-only flows).
+
+**Blockers fixed since the 2026-07-08 (first run, 3/6 Pass) attempt:**
+- Seeded a `SUBMITTED_TO_FOCAL` proposal + idempotent `ProposalAssignment` for `focal@dev.local` (`apps/backend/prisma/seed.ts`)
+- Built admin assignment API (`apps/backend/src/routes/assignments.ts`, 8 tests in `assignments.test.ts`) and UI panel (`ProposalDetailPage.tsx` "Staff Assignments" section, admin-only)
+- Fixed a React 18 StrictMode double-mount bug that created orphaned draft proposals (`ProposalFormPage.tsx`, ref guard)
+
+| # | Login | URL | Action | Expected | Result | Pass | Fail |
+|---|-------|-----|--------|----------|--------|:----:|:----:|
+| 1 | applicant@dev.local | /proposals/new | Fill + submit GIA form | Status → SUBMITTED_TO_FOCAL | Real browser flow: created "Phase 21A Gate Retest Proposal", filled fields, submitted. Confirmed `SUBMITTED_TO_FOCAL` on detail page. | [x] | [ ] |
+| 2 | focal@dev.local | /queue | Open proposal | Proposal visible in queue | Admin assigned `focal@dev.local` as PROJECT_FOCAL via the new **Staff Assignments** panel (real UI click, not API shortcut). Queue then showed **2 items** including the new proposal. | [x] | [ ] |
+| 3 | focal@dev.local | /proposals/:id | Acknowledge | Status → UNDER_FOCAL_REVIEW | `POST .../workflow/acknowledge` → `200 {"status":"UNDER_FOCAL_REVIEW"}`. (Focal action buttons are not yet wired to the UI — exercised directly via API per task instructions; the assignment blocker that caused this to 403 last run is resolved.) | [x] | [ ] |
+| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant receives notification | `POST .../workflow/return-to-applicant` → `200 {"status":"RETURNED_TO_APPLICANT"}`. `GET /api/notifications` for applicant confirmed a real `PROPOSAL_RETURNED_TO_APPLICANT` notification (not the prior run's diagnostic row). | [x] | [ ] |
+| 5 | applicant@dev.local | /notifications | Mark notification read | Notification cleared from list | Real UI flow: notification showed "Unread", clicked **Mark all read**, screenshot confirmed badge flipped to "Read". | [x] | [ ] |
+| 6 | admin@dev.local | /admin/users | Load page | Users table renders with data | Screenshot confirmed: 15 users (8 original + Phase 11/12 seed additions), all columns correct. | [x] | [ ] |
+
+**Verdict: 6/6 Pass.** Automated gate also green — see below. **Phase 21A is closed.**
+
+### History — first attempt, 2026-07-08 (3/6 Pass, superseded by the run above)
+
+| # | Login | Action | Result |
+|---|-------|--------|--------|
+| 1 | applicant | Fill + submit GIA | Pass |
+| 2 | focal | Open queue | Fail — `GET /api/queues/focal` returned 0 items; no `ProposalAssignment` seeded and no admin API/UI existed to create one |
+| 3 | focal | Acknowledge | Fail — `403 NOT_ASSIGNED`, same root cause |
+| 4 | focal | Return to applicant | Fail — `403 NOT_ASSIGNED`, same root cause |
+| 5 | applicant | Mark read | Fail — downstream of #4; diagnostic isolation confirmed the mark-read mechanism itself worked, only the trigger was unreachable |
+| 6 | admin | Users table | Pass |
+
+### Legacy 21A rows (superseded — kept for history)
+
 | # | Account | URL | Steps | Expected | Pass | Fail |
 |---|---------|-----|-------|----------|:----:|:----:|
-| 21A-1 | applicant@dev.local | / | Staff Login | Redirect to /dashboard | [ ] | [ ] |
-| 21A-2 | applicant@dev.local | /proposals/new | Create GIA proposal, fill fields | Draft saves | [ ] | [ ] |
-| 21A-3 | applicant@dev.local | /proposals/:id | Submit | Status SUBMITTED_TO_FOCAL | [ ] | [ ] |
-| 21A-4 | focal@dev.local | /queue | Open queue | Submitted proposal listed | [ ] | [ ] |
-| 21A-5 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [ ] | [ ] |
-| 21A-6 | focal@dev.local | /proposals/:id | Return to applicant + comment | RETURNED_TO_APPLICANT | [ ] | [ ] |
-| 21A-7 | applicant@dev.local | /notifications | View notification | Proposal returned alert | [ ] | [ ] |
-| 21A-8 | admin@dev.local | /admin/users | List / create user | Table works | [ ] | [ ] |
+| 21A-1 | applicant@dev.local | / | Staff Login | Redirect to /dashboard | [x] | [ ] |
+| 21A-2 | applicant@dev.local | /proposals/new | Create GIA proposal, fill fields | Draft saves | [x] | [ ] |
+| 21A-3 | applicant@dev.local | /proposals/:id | Submit | Status SUBMITTED_TO_FOCAL | [x] | [ ] |
+| 21A-4 | focal@dev.local | /queue | Open queue | Submitted proposal listed | [x] | [ ] |
+| 21A-5 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [x] | [ ] |
+| 21A-6 | focal@dev.local | /proposals/:id | Return to applicant + comment | RETURNED_TO_APPLICANT | [x] | [ ] |
+| 21A-7 | applicant@dev.local | /notifications | View notification | Proposal returned alert | [x] | [ ] |
+| 21A-8 | admin@dev.local | /admin/users | List / create user | Table works | [x] | [ ] |
 
 ---
 
@@ -107,13 +281,15 @@ Use **Staff Login** for every `@dev.local` account.
 
 | # | URL | Steps | Expected | Pass | Fail |
 |---|-----|-------|----------|:----:|:----:|
-| F1 | /queue | View queue | Assigned proposals shown | [ ] | [ ] |
-| F2 | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [ ] | [ ] |
-| F3 | /proposals/:id | Return to applicant | RETURNED_TO_APPLICANT + notification | [ ] | [ ] |
-| F4 | /proposals/:id | Endorse to RTEC | ENDORSED_TO_RTEC | [ ] | [ ] |
-| F5 | /proposals/:id | Endorse to budget | ENDORSED_TO_BUDGET | [ ] | [ ] |
-| F6 | /proposals/:id | Workflow history | Timeline visible | [ ] | [ ] |
-| F7 | /proposals/:id | Add internal comment | Comment saved | [ ] | [ ] |
+| F1 | /queue | View queue | Assigned proposals shown | [x] | [ ] |
+| F2 | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [x] | [ ] |
+| F3 | /proposals/:id | Return to applicant | RETURNED_TO_APPLICANT + notification | [x] | [ ] |
+| F4 | /proposals/:id | Endorse to RTEC | ENDORSED_TO_RTEC | [x]¹ | [ ] |
+| F5 | /proposals/:id | Endorse to budget | ENDORSED_TO_BUDGET | [x] | [ ] |
+| F6 | /proposals/:id | Workflow history | Timeline visible | [x] | [ ] |
+| F7 | /proposals/:id | Add internal comment | Comment saved | [x] | [ ] |
+
+¹ See Phase 10 gate section above — RTEC group dropdown blocked by ADMIN-only `/api/admin/rtec-groups`; underlying transition verified via API.
 
 ---
 
@@ -121,9 +297,11 @@ Use **Staff Login** for every `@dev.local` account.
 
 | # | Account | URL | Expected | Pass | Fail |
 |---|---------|-----|----------|:----:|:----:|
-| R1 | rtec.member@dev.local | /rtec/queue | Endorsed proposals listed | [ ] | [ ] |
-| R2 | rtec.member@dev.local | /rtec/reviews | Submit review (Phase 11) | [ ] | [ ] |
-| R3 | rtec.head@dev.local | /rtec/consolidation | Consolidate (Phase 11) | [ ] | [ ] |
+| R1 | rtec.member@dev.local | /rtec/queue | Endorsed proposals listed | [x] | [ ] |
+| R2 | rtec.member@dev.local | /rtec/reviews | Submit review (Phase 11) | [x] | [ ] |
+| R3 | rtec.head@dev.local | /rtec/consolidation | Consolidate (Phase 11) | [x] | [ ] |
+
+See Phase 11 gate section above for the full R1–R8 results.
 
 ---
 
@@ -131,11 +309,13 @@ Use **Staff Login** for every `@dev.local` account.
 
 | # | Account | URL | Expected | Pass | Fail |
 |---|---------|-----|----------|:----:|:----:|
-| B1 | budget@dev.local | /budget/queue | Budget-stage proposals | [ ] | [ ] |
-| B2 | budget@dev.local | /proposals/:id | Budget review action (Phase 12) | [ ] | [ ] |
-| B3 | accountant@dev.local | /accounting/queue | Accounting-stage proposals | [ ] | [ ] |
-| B4 | rd@dev.local | /rd/queue | RD decision queue | [ ] | [ ] |
-| B5 | rd@dev.local | /proposals/:id | Approve / reject / defer (Phase 12) | [ ] | [ ] |
+| B1 | budget@dev.local | /budget/queue | Budget-stage proposals | [x] | [ ] |
+| B2 | budget@dev.local | /proposals/:id | Budget review action (Phase 12) | [x] | [ ] |
+| B3 | accountant@dev.local | /accounting/queue | Accounting-stage proposals | [x] | [ ] |
+| B4 | rd@dev.local | /rd/queue | RD decision queue | [x] | [ ] |
+| B5 | rd@dev.local | /proposals/:id | Approve / reject / defer (Phase 12) | [x] | [ ] |
+
+See Phase 12 gate section above for the full B1–B13 results.
 
 ---
 

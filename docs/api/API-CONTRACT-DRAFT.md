@@ -179,23 +179,27 @@ Each endpoint below represents a named workflow action. All trigger a `proposal_
 | Method | Path | Auth | Roles | Description |
 |---|---|---|---|---|
 | `POST` | `/api/proposals/:id/workflow/acknowledge` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Focal opens/acknowledges proposal. Transitions `SUBMITTED_TO_FOCAL` → `UNDER_FOCAL_REVIEW` or `RESUBMITTED_TO_FOCAL` → `UNDER_FOCAL_REVIEW`. |
-| `POST` | `/api/proposals/:id/workflow/return-to-applicant` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` or `[ROLE: REGIONAL_DIRECTOR]` | Return proposal to Applicant with required official comment. Transitions to `RETURNED_TO_APPLICANT` or `FOR_APPLICANT_REVISION_AFTER_RTEC`. Applicant notified. |
+| `POST` | `/api/proposals/:id/workflow/return-to-applicant` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Return proposal to Applicant with required official comment. Transitions to `RETURNED_TO_APPLICANT` or `FOR_APPLICANT_REVISION_AFTER_RTEC`. Applicant notified. (RD's equivalent action is the separate `rd-return` endpoint below — different actor and unlock semantics.) |
 | `POST` | `/api/proposals/:id/workflow/endorse-to-rtec` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Endorse proposal to RTEC group. Must include `rtec_group_id`. Transitions to `ENDORSED_TO_RTEC`. RTEC members notified. |
 | `POST` | `/api/proposals/:id/workflow/return-to-rtec` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Return proposal back to RTEC for re-review (from `RETURNED_TO_FOCAL_BY_RTEC`). Transitions to `ENDORSED_TO_RTEC`. |
 | `POST` | `/api/proposals/:id/workflow/endorse-to-budget` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Endorse proposal to Budget Officer. Transitions to `ENDORSED_TO_BUDGET`. Budget Officer notified. |
 | `POST` | `/api/proposals/:id/workflow/rtec-begin-consolidation` | `[AUTH]` | `[ROLE: RTEC_HEAD]` | RTEC Head begins consolidation. Transitions `RTEC_MEMBER_REVIEWS_COMPLETE` → `UNDER_RTEC_HEAD_CONSOLIDATION`. |
 | `POST` | `/api/proposals/:id/workflow/rtec-submit-recommendation` | `[AUTH]` | `[ROLE: RTEC_HEAD]` | RTEC Head submits final recommendation. Requires `rtec_consolidations.is_submitted = false` first. Transitions to `RETURNED_TO_FOCAL_BY_RTEC`. Focal notified. |
 | `POST` | `/api/proposals/:id/workflow/budget-open` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer opens review. Transitions `ENDORSED_TO_BUDGET` → `UNDER_BUDGET_REVIEW`. |
-| `POST` | `/api/proposals/:id/workflow/budget-return` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer returns to Project Focal with findings. Transitions to `RETURNED_BY_BUDGET`. |
-| `POST` | `/api/proposals/:id/workflow/endorse-to-accounting` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer endorses to Accounting. Transitions to `ENDORSED_TO_ACCOUNTING`. Accountant notified. |
+| `POST` | `/api/proposals/:id/workflow/budget-return` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer returns to Project Focal with findings (comment required). Transitions to `RETURNED_BY_BUDGET`. Focal notified. |
+| `POST` | `/api/proposals/:id/workflow/budget-endorse` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer endorses to Accounting. Transitions to `ENDORSED_TO_ACCOUNTING`. Accountant notified. |
+| `POST` | `/api/proposals/:id/workflow/budget-re-endorse` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Budget Officer re-endorses after Accounting returned it to Budget. Transitions `RETURNED_BY_ACCOUNTING` → `ENDORSED_TO_ACCOUNTING`. Accountant notified. |
 | `POST` | `/api/proposals/:id/workflow/accounting-open` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant opens review. Transitions `ENDORSED_TO_ACCOUNTING` → `UNDER_ACCOUNTING_REVIEW`. |
-| `POST` | `/api/proposals/:id/workflow/accounting-return` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant returns proposal (to Budget or directly to Focal per policy). Transitions to `RETURNED_BY_ACCOUNTING`. |
-| `POST` | `/api/proposals/:id/workflow/endorse-to-rd` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant endorses to Regional Director. Transitions to `ENDORSED_TO_RD`. RD notified. |
+| `POST` | `/api/proposals/:id/workflow/accounting-return-to-budget` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant returns proposal to Budget with findings (comment required). Transitions to `RETURNED_BY_ACCOUNTING`. Budget Officer notified. Distinct action code from the direct-to-Focal path below for an unambiguous audit trail. |
+| `POST` | `/api/proposals/:id/workflow/accounting-return-to-focal` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant returns proposal directly to Project Focal, skipping Budget (policy-confirmed). Transitions to `RETURNED_BY_ACCOUNTING`. Focal notified (not Budget Officer). |
+| `POST` | `/api/proposals/:id/workflow/accounting-endorse-to-rd` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Accountant endorses to Regional Director. Transitions to `ENDORSED_TO_RD`. All active `REGIONAL_DIRECTOR` role-holders notified (role-based, not assignment-based — RD has unconditional access per Roles-and-Permissions §3.1). |
+| `POST` | `/api/proposals/:id/workflow/focal-reroute` | `[AUTH]` | `[ROLE: PROJECT_FOCAL]` | Project Focal re-routes a proposal the Accountant returned directly (comment required). Transitions `RETURNED_BY_ACCOUNTING` → `UNDER_FOCAL_REVIEW`. |
 | `POST` | `/api/proposals/:id/workflow/rd-open` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD opens proposal for review. Transitions `ENDORSED_TO_RD` → `UNDER_RD_REVIEW`. |
-| `POST` | `/api/proposals/:id/workflow/rd-approve` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD approves. Transitions to `APPROVED`. Applicant and Focal notified. Proposal locked. |
-| `POST` | `/api/proposals/:id/workflow/rd-defer` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD defers. Transitions to `DEFERRED`. Reason required. |
+| `POST` | `/api/proposals/:id/workflow/rd-approve` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD approves (comment required). Transitions to `APPROVED`. Applicant and Focal notified. Proposal locked (`isLocked = true`). |
+| `POST` | `/api/proposals/:id/workflow/rd-defer` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD defers (reason required). Transitions to `DEFERRED`. No Applicant notification — internal hold. |
 | `POST` | `/api/proposals/:id/workflow/rd-resume` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD resumes deferred review. Transitions `DEFERRED` → `UNDER_RD_REVIEW`. |
-| `POST` | `/api/proposals/:id/workflow/rd-reject` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD rejects proposal. Transitions to `REJECTED`. Reason required. Applicant notified. |
+| `POST` | `/api/proposals/:id/workflow/rd-reject` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD rejects proposal (comment required). Transitions to `REJECTED`. Applicant and Focal notified. Proposal locked (`isLocked = true`). |
+| `POST` | `/api/proposals/:id/workflow/rd-return` | `[AUTH]` | `[ROLE: REGIONAL_DIRECTOR]` | RD returns proposal to Applicant for revision (comment required). Transitions to `RETURNED_TO_APPLICANT`. Unlocks the proposal (`isLocked = false`). Applicant notified. Separate endpoint from the Focal-stage `return-to-applicant` above since the actor role and unlock behavior differ. |
 | `GET` | `/api/proposals/:id/workflow/history` | `[AUTH]` | `[OWNER] or [ASSIGNED] or [ROLE: ADMIN]` | Get full workflow history for a proposal (all `proposal_workflow_history` rows). |
 
 **Implementation rules for all workflow endpoints:**
@@ -224,33 +228,21 @@ Each endpoint below represents a named workflow action. All trigger a `proposal_
 
 ---
 
-## 12. Budget Review — `/api/proposals/:id/budget-review`
+## 12. Budget Review — `budget_reviews` table (no standalone endpoints)
 
-| Method | Path | Auth | Roles | Description |
-|---|---|---|---|---|
-| `GET` | `/api/proposals/:id/budget-review` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` or `[ROLE: ADMIN]` | Get the current budget review record for this proposal version. |
-| `POST` | `/api/proposals/:id/budget-review` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Create or update budget review findings. |
-| `PATCH` | `/api/proposals/:id/budget-review` | `[AUTH]` | `[ROLE: BUDGET_OFFICER]` | Update findings or action. |
+**Superseded by the workflow-action pattern.** As built in Phase 12, `budget_reviews` rows are created/updated as a side effect of the workflow actions in §10 (`budget-open` creates an `OPEN` row; `budget-return`/`budget-endorse`/`budget-re-endorse` update or create the row with `findings`/`action_taken`/`reviewed_at`) — there is no standalone `GET/POST/PATCH /api/proposals/:id/budget-review` endpoint. Findings are visible via each action's response and via `proposal_workflow_history`. A dedicated read endpoint may be added in a later phase if a Budget review detail view is needed.
 
 ---
 
-## 13. Accounting Review — `/api/proposals/:id/accounting-review`
+## 13. Accounting Review — `accounting_reviews` table (no standalone endpoints)
 
-| Method | Path | Auth | Roles | Description |
-|---|---|---|---|---|
-| `GET` | `/api/proposals/:id/accounting-review` | `[AUTH]` | `[ROLE: ACCOUNTANT]` or `[ROLE: ADMIN]` | Get the current accounting review record for this proposal version. |
-| `POST` | `/api/proposals/:id/accounting-review` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Create or update accounting review findings. |
-| `PATCH` | `/api/proposals/:id/accounting-review` | `[AUTH]` | `[ROLE: ACCOUNTANT]` | Update findings or action. |
+**Superseded by the workflow-action pattern**, same as §12: `accounting_reviews` rows are created/updated by the `accounting-open`/`accounting-return-to-budget`/`accounting-return-to-focal`/`accounting-endorse-to-rd` actions in §10. No standalone CRUD endpoint exists.
 
 ---
 
-## 14. RD Decision — `/api/proposals/:id/rd-decision`
+## 14. RD Decision — `rd_decisions` table (no standalone endpoint)
 
-| Method | Path | Auth | Roles | Description |
-|---|---|---|---|---|
-| `GET` | `/api/proposals/:id/rd-decision` | `[AUTH]` | `[ASSIGNED] or [OWNER] or [ROLE: ADMIN]` | Get the RD decision record for this proposal. Returns only after a decision has been recorded. |
-
-**Note:** The decision is created by the workflow endpoints in §10 (`rd-approve`, `rd-defer`, `rd-reject`, `return-to-applicant`). This endpoint is read-only.
+`rd_decisions` rows are created by the workflow endpoints in §10 (`rd-approve`, `rd-defer`, `rd-reject`, `rd-return`). There is no standalone `GET /api/proposals/:id/rd-decision` endpoint as originally drafted — decision history is visible via `GET /api/proposals/:id/workflow/history`. A dedicated read endpoint may be added later if needed.
 
 ---
 

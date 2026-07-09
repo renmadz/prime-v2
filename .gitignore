@@ -22,3 +22,6 @@ Thumbs.db
 
 # Local overrides
 PRIME_QA_PUSH_OK
+
+# Agent skill driver output
+.claude/skills/run-prime-v2/screenshots/

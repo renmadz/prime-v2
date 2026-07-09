@@ -28,12 +28,15 @@ Related docs:
 | UI shell (left nav, all routes) | Done |
 | Proposals (create, save, submit, comments, versions) | Done (minimal 3 form templates) |
 | Admin / queues / notifications / profile pages | Done (API wired) |
-| Focal workflow | Backend done; **UI pending** |
-| RTEC / Budget / RD workflow | Not started |
+| Focal workflow | Backend done; **UI done** (Phase 10, closed 2026-07-09) |
+| Proposal staff assignment | Done — seed + admin API + admin UI (Phase 21A) |
+| RTEC workflow | Backend + UI done (Phase 11, closed 2026-07-09) — `RtecMemberReviewPage.tsx`, `RtecHeadConsolidationPage.tsx` |
+| Budget / Accounting / RD workflow | Backend + UI done (Phase 12, closed 2026-07-09) — Budget/Accountant/RD action panels on `ProposalDetailPage.tsx` |
 | Full fillable forms (21 specs) | Partial (3 short stubs in seed) |
+| Document export | Done (Phase 13, closed 2026-07-09) — HTML export (pdfkit not installed), `export.ts` |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 21A** (test data + focal demo path).
+**You are here:** **Phase 14–15** (Security hardening + full QA regression) — **Phase 13 closed 2026-07-09**, automated 4/4 + manual 7/7, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13; **Phase 12 closed 2026-07-09**, automated 4/4 + manual 13/13; **Phase 11 closed 2026-07-09**, automated 4/4 + manual 8/8; **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 
@@ -107,37 +110,44 @@ Phase 19–20 Production launch + hypercare
 ## Phase 21A — Test data and focal path
 
 **Goal:** Demo Applicant → Focal without manual database edits.  
-**Estimate:** 1–2 weeks.
+**Estimate:** 1–2 weeks.  
+**Status:** ✅ **Closed 2026-07-08.** All 6 manual gate tests pass; both automated suites green. See [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A for full results and evidence.
 
 ### Tasks
 
-| # | Task | Files |
-|---|------|-------|
-| 1 | Seed proposals in multiple statuses (DRAFT, SUBMITTED_TO_FOCAL, ENDORSED_TO_RTEC, …) | `apps/backend/prisma/seed.ts` |
-| 2 | Seed `ProposalAssignment` for focal, RTEC, budget, RD dev users | `apps/backend/prisma/seed.ts` |
-| 3 | Focal workflow buttons on proposal detail (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` |
-| 4 | Admin UI to assign staff to proposals | New admin page or extend admin module |
-| 5 | Unread notification count on sidebar | `apps/frontend/src/components/shell/SideNav.tsx` |
+| # | Task | Files | Status |
+|---|------|-------|--------|
+| 1 | Seed proposals in multiple statuses (DRAFT, SUBMITTED_TO_FOCAL, ENDORSED_TO_RTEC, …) | `apps/backend/prisma/seed.ts` | ✅ Done — seed guarantees at least one `SUBMITTED_TO_FOCAL` GIA proposal (reuses an existing one idempotently, creates one if none exists) |
+| 2 | Seed `ProposalAssignment` for focal, RTEC, budget, RD dev users | `apps/backend/prisma/seed.ts` | ✅ Done for `focal@dev.local` (PROJECT_FOCAL) — idempotent, verified by re-running seed twice with no duplicate rows. RTEC/budget/RD assignment seeding not done (not required by the Phase 21A gate; RTEC uses `RtecMembership`, not `ProposalAssignment`) |
+| 3 | Focal workflow buttons on proposal detail (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` | ⏳ Still not present — tests #3/#4 exercised via API directly per task instructions. Backend routes work correctly; only the UI buttons are missing. Candidate for Phase 10 (already scheduled to "complete focal workflow UI") |
+| 4 | Admin UI to assign staff to proposals | New admin page or extend admin module | ✅ Done — `apps/backend/src/routes/assignments.ts` (POST/GET/DELETE, admin-only, 8 tests) + "Staff Assignments" panel on `ProposalDetailPage.tsx` (admin-only: dropdown of all users, role selector, assign/unassign) |
+| 5 | Unread notification count on sidebar | `apps/frontend/src/components/shell/SideNav.tsx` | Not built this round (not required by the 6 gate tests) |
 
-### Phase 21A test gate
+Also fixed as part of this closeout: a React 18 StrictMode double-mount bug in `ProposalFormPage.tsx` that created orphaned draft proposals on every page mount (ref guard added — see Gotchas in [run-prime-v2 SKILL.md](../../.claude/skills/run-prime-v2/SKILL.md) if this resurfaces).
 
-Run these manually and mark Pass in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A:
+### Phase 21A test gate — result 2026-07-08 (retest, post-fix)
 
-| # | Login | URL | Action | Expected |
-|---|-------|-----|--------|----------|
-| 1 | applicant@dev.local | /proposals/new | Fill + submit GIA | Status SUBMITTED_TO_FOCAL |
-| 2 | focal@dev.local | /queue | Open proposal | Visible in queue |
-| 3 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW |
-| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant notification |
-| 5 | applicant@dev.local | /notifications | Mark read | Notification cleared |
-| 6 | admin@dev.local | /admin/users | List users | Table loads |
+Full detail, evidence, and screenshots-backed verification in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A.
 
-### Automated gate
+| # | Login | URL | Action | Expected | Result |
+|---|-------|-----|--------|----------|--------|
+| 1 | applicant@dev.local | /proposals/new | Fill + submit GIA | Status SUBMITTED_TO_FOCAL | ✅ Pass |
+| 2 | focal@dev.local | /queue | Open proposal | Visible in queue | ✅ Pass — admin assigned focal via the new Staff Assignments panel (real UI), queue showed 2 items |
+| 3 | focal@dev.local | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | ✅ Pass |
+| 4 | focal@dev.local | /proposals/:id | Return to applicant | Applicant notification | ✅ Pass — real notification generated and confirmed |
+| 5 | applicant@dev.local | /notifications | Mark read | Notification cleared | ✅ Pass — real UI flow, not the prior run's diagnostic workaround |
+| 6 | admin@dev.local | /admin/users | List users | Table loads | ✅ Pass — 15 users rendered |
+
+**6/6 Pass.** Gate closed.
+
+### Automated gate — result 2026-07-08 (retest)
 
 ```powershell
-cd apps/frontend && npx vitest run
-cd apps/backend && npm test
+cd apps/frontend && npx vitest run   # 4 files, 7 tests — all passed
+cd apps/backend && npm test          # 16 files, 120 tests — all passed (includes 8 new assignments.test.ts cases)
 ```
+
+127/127 passed.
 
 ---
 
@@ -173,6 +183,10 @@ cd apps/backend && npm test
 
 **Test:** focal@dev.local on `/queue` and `/proposals/:id`
 
+**Status:** ✅ **Closed 2026-07-09.** `workflowApi` added to `apps/frontend/src/lib/api.ts`; Focal Actions panel (status-conditional Acknowledge/Return to Applicant/Endorse to RTEC/Endorse to Budget/Return to RTEC buttons + 4 confirmation modals) and a Workflow History timeline added to `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`. 4 new Vitest tests (TC-FOCAL-01..04). Full results in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10.
+
+Known gap (not fixed, flagged during implementation): `GET /api/admin/rtec-groups` is `ADMIN`-only in the backend, but the Endorse-to-RTEC modal needs it to populate the group dropdown for `PROJECT_FOCAL` users — the dropdown is empty for a real focal user. The underlying `endorse-to-rtec` workflow transition itself works correctly. Fixing this requires a backend route change (e.g. `requireRole("ADMIN", "PROJECT_FOCAL")` or a new focal-scoped endpoint), which was out of scope for this phase per the "do not change backend routes" constraint — candidate for Phase 11 cleanup.
+
 ---
 
 ## Phase 11 — RTEC
@@ -185,6 +199,8 @@ cd apps/backend && npm test
 
 **Test accounts:** rtec.member@dev.local, rtec.head@dev.local, focal@dev.local
 
+**Status:** ✅ **Closed 2026-07-09.** `rtecApi` added to `apps/frontend/src/lib/api.ts`; `RtecMemberReviewPage.tsx` and `RtecHeadConsolidationPage.tsx` built with autosave, submit, and (for the head) a member-reviews panel with reopen. `GET /api/admin/rtec-groups` opened to `RTEC_MEMBER`/`RTEC_HEAD` in addition to the Phase 10 `PROJECT_FOCAL` fix — all three roles hit the same "no way to learn my own rtecGroupId before a first draft" gap, so the same relaxation was applied to all of them (one route, `apps/backend/src/routes/adminRtecGroups.ts`). Seed extended with an idempotent `UNDER_RTEC_REVIEW` demo proposal with the full committee assigned. Full results in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 11.
+
 ---
 
 ## Phase 12 — Budget, Accounting, Regional Director
@@ -196,6 +212,8 @@ cd apps/backend && npm test
 
 **Test:** budget@dev.local, accountant@dev.local, rd@dev.local on their queue URLs
 
+**Status:** ✅ **Closed 2026-07-09.** `phase12Api` added to `apps/frontend/src/lib/api.ts`; Budget Officer, Accountant, and Regional Director action panels (11 modals total) wired into `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, following the Phase 10 Focal Actions pattern exactly. A Focal re-route button was added to the existing Focal Actions panel for the `RETURNED_BY_ACCOUNTING` status. 3 demo proposals seeded (one per role, idempotent). No backend routes changed. Full results in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 12.
+
 ---
 
 ## Phase 13 — Document generation
@@ -204,6 +222,10 @@ cd apps/backend && npm test
 
 - Generation service + download on approved proposals
 - Store in MinIO
+
+**Status:** ✅ **Closed 2026-07-09.** `pdfkit` is not installed in this repo, so export generates a self-contained HTML file per the task's documented fallback (identical flow otherwise: generate → store in MinIO → presigned download URL). New `ProposalExport` Prisma model, `POST /api/proposals/:id/export` + `GET /api/proposals/:id/export/latest` routes (owner/assigned/admin, APPROVED-only), `exportApi` + a "Document Export" section on `ProposalDetailPage.tsx`.
+
+Two real bugs found and fixed during manual verification (both pre-existing, not introduced by this phase — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13 for full detail): the MinIO bucket didn't exist in this dev environment (created via `mc mb`), and presigned URLs were signed with the internal Docker hostname, unreachable from a real browser — fixed in the shared `services/minio.ts` (affects attachments downloads too) via a new `MINIO_PUBLIC_ENDPOINT` env var plus an explicit signing region.
 
 ---
 

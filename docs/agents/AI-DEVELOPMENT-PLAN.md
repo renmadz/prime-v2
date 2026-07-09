@@ -15,12 +15,9 @@ repo_entry: DEVELOPERS.md
 execution_plan: docs/agents/DEVELOPER-EXECUTION-PLAN.md
 test_checklist: docs/agents/TEST-MATRIX.md
 phase_status: docs/agents/PHASES-REFERENCE.md
-active_phase: "21A"
-active_phase_name: "Test data + focal demo path"
+active_phase: "Phase 14"
+active_phase_name: "Security Hardening (Phase 13 closed 2026-07-09)"
 do_not_implement_yet:
-  - RTEC workflow (Phase 11) until Phase 10 gate closed
-  - Budget/Accounting/RD workflow (Phase 12) until Phase 11 closed
-  - PDF export (Phase 13) until Phase 12 closed
   - Staging/production deploy (Phases 16–20) until Phase 15 QA pass
 local_ui: http://localhost:5173
 local_api: http://localhost:3000
@@ -60,53 +57,53 @@ pre_push_gate: docs/agents/QA-PUSH-GATE.md
 
 | Phase | Feature | Blocked until |
 |-------|---------|---------------|
-| **21A** | Seed sample proposals + assignments; focal UI on proposal detail; notification badge; admin assignment UI | Now (start here) |
-| **21B** | Full GIA/CEST/SSCP forms; TABLE fields; required validation | 21A gate Pass |
-| **10** | Complete focal workflow UI + history display | 21B gate Pass |
-| **11** | RTEC review + consolidation backend + UI | Phase 10 gate Pass |
-| **12** | Budget, Accounting, RD workflow | Phase 11 gate Pass |
-| **13** | PDF/document export | Phase 12 gate Pass |
-| **14–15** | Security hardening + full QA regression | Phase 13 gate Pass |
+| **21A** | Seed sample proposals + assignments; focal UI on proposal detail; notification badge; admin assignment UI | ✅ Closed |
+| **21B** | Full GIA/CEST/SSCP forms; TABLE fields; required validation | ✅ Closed |
+| **10** | Complete focal workflow UI + history display | ✅ Closed 2026-07-09 |
+| **11** | RTEC review + consolidation backend + UI | ✅ Closed 2026-07-09 |
+| **12** | Budget, Accounting, RD workflow | ✅ Closed 2026-07-09 |
+| **13** | PDF/document export | ✅ Closed 2026-07-09 |
+| **14–15** | Security hardening + full QA regression | Now (start here) |
 | **16–18** | Staging, UAT, production readiness | Phase 15 gate Pass |
 | **19–20** | Production launch + hypercare | Phase 18 sign-off |
 
 ---
 
-## Phase 21A — AI task spec (current)
+## Phase 21A — AI task spec (✅ closed 2026-07-08)
 
 **Goal:** Any developer can demo Applicant → Focal without manual DB edits.
 
-### Files to change
+### Files changed
 
-| Task | Files |
-|------|-------|
-| Seed proposals (DRAFT, SUBMITTED_TO_FOCAL, ENDORSED_TO_RTEC, …) | `apps/backend/prisma/seed.ts` |
-| Seed `ProposalAssignment` rows | `apps/backend/prisma/seed.ts` |
-| Focal workflow buttons (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` |
-| Admin assign staff to proposal | New page under `apps/frontend/src/pages/admin/` + backend route |
-| Notification unread badge | `apps/frontend/src/components/shell/SideNav.tsx` |
+| Task | Files | Status |
+|------|-------|--------|
+| Seed a `SUBMITTED_TO_FOCAL` proposal | `apps/backend/prisma/seed.ts` | ✅ Done — idempotent, reuses existing or creates one |
+| Seed `ProposalAssignment` rows | `apps/backend/prisma/seed.ts` | ✅ Done for `focal@dev.local` / PROJECT_FOCAL |
+| Focal workflow buttons (acknowledge, return, endorse) | `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`, `apps/frontend/src/lib/api.ts` | ⏳ Not done — routes exercised via API in the gate test; UI buttons deferred to Phase 10 |
+| Admin assign staff to proposal | `apps/backend/src/routes/assignments.ts` + "Staff Assignments" panel on `ProposalDetailPage.tsx` | ✅ Done |
+| Notification unread badge | `apps/frontend/src/components/shell/SideNav.tsx` | Not done — not required by the gate |
 
-### Exit gate (manual)
+### Exit gate (manual) — 6/6 Pass 2026-07-08
 
-Mark Pass in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A:
+Full results in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21A.
 
-1. applicant@dev.local — create + submit GIA → `SUBMITTED_TO_FOCAL`
-2. focal@dev.local — `/queue` shows proposal
-3. focal@dev.local — acknowledge → `UNDER_FOCAL_REVIEW`
-4. focal@dev.local — return to applicant → applicant notification
-5. applicant@dev.local — `/notifications` mark read
-6. admin@dev.local — `/admin/users` loads
+1. applicant@dev.local — create + submit GIA → `SUBMITTED_TO_FOCAL` ✅
+2. focal@dev.local — `/queue` shows proposal ✅
+3. focal@dev.local — acknowledge → `UNDER_FOCAL_REVIEW` ✅
+4. focal@dev.local — return to applicant → applicant notification ✅
+5. applicant@dev.local — `/notifications` mark read ✅
+6. admin@dev.local — `/admin/users` loads ✅
 
-### Exit gate (automated)
+### Exit gate (automated) — 127/127 Pass 2026-07-08
 
 ```powershell
-cd apps/frontend && npx vitest run
-cd apps/backend && npm test
+cd apps/frontend && npx vitest run   # 7/7
+cd apps/backend && npm test          # 120/120
 ```
 
-### After 21A passes
+### Now on Phase 21B
 
-Update [PHASES-REFERENCE.md](PHASES-REFERENCE.md) → set 21A Done, active phase → **21B**.
+See [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) § Phase 21B (fillable forms — GIA/CEST/SSCP full multi-section forms, TABLE fields, required validation).
 
 ---
 

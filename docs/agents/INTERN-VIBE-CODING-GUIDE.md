@@ -81,10 +81,13 @@ When done, list what is still needed for Phase 0 approval gate.
 
 ---
 
-## Phase 1 — Business Analysis and Project Brief
+#l/email process)
+- Proposed solution (PRIME v2 web workflow)
+- Stakeholder matrix (link STAKEHOLDERS.md)
+- Current vs proposed process (text or mermaid)
+- Assumptions, constraints, success metrics# Phase 1 — Business Analysis and Project Brief
 
-| | |
-|---|---|
+| | ||---|---|
 | **Coding** | No |
 | **Agents** | Product Manager |
 
@@ -98,11 +101,7 @@ Act as: Product Manager Agent
 Read README.md §3 Business Story, §4 Vision, §5 Objectives, §10 Main Workflow.
 
 Draft docs/project-brief/PRIME-v2-Project-Brief.md with:
-- Problem statement (current manual Word/Excel/email process)
-- Proposed solution (PRIME v2 web workflow)
-- Stakeholder matrix (link STAKEHOLDERS.md)
-- Current vs proposed process (text or mermaid)
-- Assumptions, constraints, success metrics
+- Problem statement (current manual Word/Exce
 
 Do not write code. Flag anything that needs interview confirmation with process owners.
 ```

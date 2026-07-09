@@ -16,7 +16,10 @@ services:
     labels:
       - "traefik.enable=true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      # wget, not curl — the alpine-based images ship busybox wget only.
+      # 127.0.0.1, not localhost — localhost resolves to ::1 first and the
+      # servers bind IPv4 0.0.0.0 only; busybox wget doesn't fall back.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -57,7 +60,11 @@ services:
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      # wget, not curl — node:20-alpine ships busybox wget only (matches the
+      # Dockerfile HEALTHCHECK; this compose entry overrides it, so keep in sync).
+      # 127.0.0.1, not localhost — localhost resolves to ::1 first and Fastify
+      # binds IPv4 0.0.0.0 only; busybox wget doesn't fall back.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -1,0 +1,10 @@
+{
+  "name": "run-prime-v2-skill",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Playwright driver used by the run-prime-v2 agent skill. Not part of the app.",
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}

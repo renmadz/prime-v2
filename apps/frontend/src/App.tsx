@@ -21,6 +21,8 @@ import ProposalFormPage from "./pages/proposals/ProposalFormPage";
 import ProposalDetailPage from "./pages/proposals/ProposalDetailPage";
 import ProposalHistoryPage from "./pages/proposals/ProposalHistoryPage";
 import ProposalComparePage from "./pages/proposals/ProposalComparePage";
+import RtecMemberReviewPage from "./pages/rtec/RtecMemberReviewPage";
+import RtecHeadConsolidationPage from "./pages/rtec/RtecHeadConsolidationPage";
 
 function protectedShell(title: string, element: ReactNode) {
   return (
@@ -111,6 +113,14 @@ export default function App() {
               description="Proposals ready for RTEC Head consolidation."
             />,
           )}
+        />
+        <Route
+          path="/rtec/reviews/:proposalId"
+          element={protectedShell("RTEC Review", <RtecMemberReviewPage />)}
+        />
+        <Route
+          path="/rtec/consolidation/:proposalId"
+          element={protectedShell("RTEC Consolidation", <RtecHeadConsolidationPage />)}
         />
         <Route
           path="/budget/queue"

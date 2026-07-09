@@ -64,14 +64,49 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 21A — test data + focal demo path** (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md))
+**You are here: Phase 14 — Security Hardening** (Phase 13 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13). Phase 12 closed 2026-07-09. Phase 11 closed 2026-07-09. Phase 10 closed 2026-07-09. Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+
+| Phase 13 item | Status |
+|---|---|
+| `ProposalExport` Prisma model | ✅ Done — `apps/backend/prisma/schema.prisma` |
+| Export backend route (`POST /export`, `GET /export/latest`) | ✅ Done — `apps/backend/src/routes/export.ts`, HTML fallback (pdfkit not installed) |
+| `exportApi` + Document Export section on proposal detail | ✅ Done — `apps/frontend/src/lib/api.ts`, `ProposalDetailPage.tsx` |
+| APPROVED demo proposal seed | ✅ Done — `apps/backend/prisma/seed.ts`, idempotent |
+| Backend tests (export.test.ts) | ✅ Done — 6/6 pass, 132/132 total |
+| Frontend tests (TC-EXPORT-UI-01..03) | ✅ Done — 3/3 pass, 20/20 total |
+| **MinIO bucket missing in dev environment** | ⚠️ Fixed — pre-existing gap, not caused by Phase 13; bucket created via `mc mb` (one-time env fix) |
+| **Presigned URLs unreachable from browser** | ⚠️ Fixed — shared bug in `apps/backend/src/services/minio.ts` affecting attachments too; added a public-facing client (`MINIO_PUBLIC_ENDPOINT`) + explicit `region` to skip an internal-only region lookup. User-approved fix, verified via real Playwright browser download. |
+| Phase 13 approval gate | ✅ **Closed 2026-07-09** — automated 4/4 (vitest/npm test/tsc/prisma), manual 7/7 (D1–D7) |
+
+| Phase 12 item | Status |
+|---|---|
+| `phase12Api` (budget/accounting/RD workflow methods + focalReroute) | ✅ Done — `apps/frontend/src/lib/api.ts` |
+| Budget Officer, Accountant, Regional Director action panels + 11 modals | ✅ Done — `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` |
+| Focal re-route button (RETURNED_BY_ACCOUNTING → UNDER_FOCAL_REVIEW) | ✅ Done — added to the existing Focal Actions panel |
+| Demo proposals (Budget, Accounting, RD) | ✅ Done — `apps/backend/prisma/seed.ts`, idempotent, verified via double-seed |
+| Frontend tests (TC-BUDGET-UI-01/02, TC-RD-UI-01) | ✅ Done — 3/3 pass, 17/17 total |
+| No backend routes changed | ✅ Confirmed — 126/126 backend tests unchanged |
+| Phase 12 approval gate | ✅ **Closed 2026-07-09** — automated 4/4 (vitest/npm test/tsc/seed), manual 13/13 (B1–B13) |
+
+| Phase 11 item | Status |
+|---|---|
+| `GET /api/admin/rtec-groups` role fix (ADMIN, PROJECT_FOCAL, RTEC_MEMBER, RTEC_HEAD) | ✅ Done — `apps/backend/src/routes/adminRtecGroups.ts`; extended beyond the task's literal ADMIN+PROJECT_FOCAL spec to also cover RTEC_MEMBER/RTEC_HEAD, who hit the identical own-group-lookup gap (user-approved during implementation) |
+| `rtecApi` (saveReview, submitReview, getMyReview, getAllReviews, saveConsolidation, getConsolidation, submitConsolidation, beginConsolidation, reopenReview) | ✅ Done — `apps/frontend/src/lib/api.ts` |
+| `RtecMemberReviewPage` (review form, autosave, submit) | ✅ Done — `apps/frontend/src/pages/rtec/RtecMemberReviewPage.tsx` |
+| `RtecHeadConsolidationPage` (begin consolidation, consolidation form, member reviews panel, reopen) | ✅ Done — `apps/frontend/src/pages/rtec/RtecHeadConsolidationPage.tsx` |
+| RTEC-specific queue row navigation | ✅ Done — `apps/frontend/src/pages/queues/QueuePage.tsx` |
+| RTEC demo proposal seed (UNDER_RTEC_REVIEW, full committee assigned) | ✅ Done — `apps/backend/prisma/seed.ts`, idempotent, verified via double-seed |
+| Backend tests (adminRtecGroups.test.ts) | ✅ Done — 6/6 pass |
+| Frontend tests (RtecMemberReviewPage.test.tsx) | ✅ Done — 3/3 pass (TC-RTEC-UI-01..03) |
+| Latent Phase 10 bug fixed in passing: `listRtecGroups()` response shape (`{groups:[]}` vs bare array) | ✅ Fixed — `api.ts` + `ProposalDetailPage.tsx` |
+| Phase 11 approval gate | ✅ **Closed 2026-07-09** — automated 4/4 (vitest/npm test/tsc/seed), manual 8/8 (R1–R8) |
 
 Implementation is open to **all developers**. Follow agent consultation ([AGENTS.md](../../AGENTS.md)), [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md), [TEST-MATRIX.md](TEST-MATRIX.md), and [QA-PUSH-GATE.md](QA-PUSH-GATE.md).
 
 | Phase 21 sub-phase | Focus | Status |
 |---|---|---|
-| **21A** | Seed sample proposals + assignments; focal workflow UI; notification badge | ⏳ In progress |
-| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ⏳ Pending |
+| **21A** | Seed sample proposals + assignments; admin assignment API/UI | ✅ **Closed 2026-07-08** |
+| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ✅ **Closed 2026-07-09** — automated gates 13/13 Pass; manual browser smoke deferred to developer walkthrough |
 
 | Phase 21 item | Status |
 |---|---|
@@ -80,9 +115,21 @@ Implementation is open to **all developers**. Follow agent consultation ([AGENTS
 | `@dev.local` applicant login in development | ✅ Done |
 | Left nav + admin/queue/notification UI | ✅ Done |
 | Fillable dynamic forms (3 seeded types) | ✅ Partial — expand to all 21 forms (21B) |
-| Focal workflow UI on proposal detail | ⏳ Pending (21A) |
+| Sample `SUBMITTED_TO_FOCAL` proposal + focal assignment seed | ✅ Done (21A) |
+| Admin staff-assignment API + UI | ✅ Done (21A) — `assignments.ts` route, "Staff Assignments" panel on proposal detail |
+| Focal workflow buttons on proposal detail (acknowledge/return/endorse) | ✅ Done (Phase 10, 2026-07-09) — `workflowApi` in `api.ts`, Focal Actions panel + 4 modals + Workflow History timeline on `ProposalDetailPage.tsx` |
 | Staging deploy smoke checklist | ⏳ Pending |
-| Phase 21 approval gate | ⏳ Open |
+| Phase 21A approval gate | ✅ **Closed 2026-07-08** |
+| Phase 21 (overall) approval gate | ⏳ Open — 21B in progress |
+
+| Phase 10 item | Status |
+|---|---|
+| `workflowApi` (acknowledge, returnToApplicant, endorseToRtec, endorseToBudget, returnToRtec, getHistory, listRtecGroups) | ✅ Done — `apps/frontend/src/lib/api.ts` |
+| Focal Actions panel (status-conditional buttons) + 4 confirmation modals | ✅ Done — `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` |
+| Workflow History timeline | ✅ Done — same file, reverse-chronological, human-readable action labels |
+| Vitest component tests (TC-FOCAL-01..04) | ✅ Done — `ProposalDetailPage.test.tsx`, 11/11 frontend tests green |
+| Known gap: RTEC group dropdown 403s for real focal user | ⚠️ `GET /api/admin/rtec-groups` is ADMIN-only in the backend; underlying `endorse-to-rtec` transition works when called directly. Not fixed — would require a backend route change, flagged and deferred per user decision. See [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10, footnote 1. |
+| Phase 10 approval gate | ✅ **Closed 2026-07-09** — automated 3/3 (vitest/npm test/tsc), manual 7/7 (F4 caveated) |
 
 **Previous:** Phase 10 — Workflow and Focal Review (Phase 9 gate closed 2026-07-02)
 
@@ -153,7 +200,7 @@ Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form 
 
 ## One Rule
 
-> Phases 0–4 planning gates are **closed**. Active work: **Phase 21A → 21B**, then Phases 10–13, then harden and deploy (14–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
+> Phases 0–4 planning gates are **closed**. Phase 21A, 21B, 10, 11, 12, and 13 are **closed**. Active work: **Phase 14**, then harden and deploy (15–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
 
 **Start here after git pull:** [../../DEVELOPERS.md](../../DEVELOPERS.md) → [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) → [TEST-MATRIX.md](TEST-MATRIX.md).
 

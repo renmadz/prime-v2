@@ -6,7 +6,17 @@
 - Copy .env.example to .env and fill in all values before starting
 
 ## Start the full local stack
+make dev-up          # boot (reuses built images)
+make dev-build       # rebuild images then boot (after Dockerfile/dep changes)
+make dev-down        # stop; keeps volumes (dev DB data survives)
+
+Equivalent raw command:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+⚠ docker-compose.dev.yml is an OVERRIDE file — never pass it with -f on its
+own. `docker compose -f docker-compose.dev.yml up` fails with
+"service prime-minio has neither an image nor a build context" because the
+image/build definitions live in the base docker-compose.yml.
 
 ## Verify health
 curl http://localhost:3000/health

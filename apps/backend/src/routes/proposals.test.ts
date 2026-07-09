@@ -28,7 +28,7 @@ function sessionCookieHeader(response: { cookies: Array<{ name: string; value: s
   return cookie ? `sessionId=${cookie.value}` : "";
 }
 
-let ipCounter = 200;
+let ipCounter = 800;
 function nextIp() {
   ipCounter += 1;
   return `10.0.4.${ipCounter}`;

@@ -234,6 +234,273 @@ export const phase9Api = {
     request<ProposalVersionSummary[]>('GET', `/api/proposals/${proposalId}/versions`),
 };
 
+// ── Proposal assignments (Phase 21A, admin-only) ────────────────────────────────
+
+export interface ProposalAssignment {
+  id: string;
+  proposalId: string;
+  userId: string;
+  roleCode: string;
+  assignedAt: string;
+  assignedBy: string;
+  isActive: boolean;
+  user: { id: string; email: string; firstName: string; lastName: string };
+}
+
+export const assignmentsApi = {
+  list: (proposalId: string) =>
+    request<ProposalAssignment[]>('GET', `/api/proposals/${proposalId}/assignments`),
+  create: (proposalId: string, body: { userId: string; roleCode: string }) =>
+    request<ProposalAssignment>('POST', `/api/proposals/${proposalId}/assignments`, body),
+  remove: (proposalId: string, assignmentId: string) =>
+    request<ProposalAssignment>('DELETE', `/api/proposals/${proposalId}/assignments/${assignmentId}`),
+};
+
+// ── Focal workflow (Phase 10) ───────────────────────────────────────────────
+
+export interface WorkflowHistoryEntry {
+  id: string;
+  proposalId: string;
+  fromStatus: string;
+  toStatus: string;
+  actorUserId: string;
+  actorRole: string;
+  workflowAction: string;
+  proposalVersionNumber: number;
+  comment: string | null;
+  transitionedAt: string;
+  sessionReference: string | null;
+}
+
+export interface RtecMembershipSummary {
+  id: string;
+  rtecGroupId: string;
+  userId: string;
+  roleInGroup: 'MEMBER' | 'HEAD';
+  isActive: boolean;
+}
+
+export interface RtecGroupSummary {
+  id: string;
+  name: string;
+  isActive: boolean;
+  memberships: RtecMembershipSummary[];
+}
+
+export const workflowApi = {
+  acknowledge: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/acknowledge`
+    ),
+  returnToApplicant: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/return-to-applicant`,
+      { comment }
+    ),
+  endorseToRtec: (proposalId: string, rtecGroupId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/endorse-to-rtec`,
+      { rtecGroupId, comment }
+    ),
+  endorseToBudget: (proposalId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/endorse-to-budget`,
+      { comment }
+    ),
+  returnToRtec: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/return-to-rtec`,
+      { comment }
+    ),
+  getHistory: (proposalId: string) =>
+    request<{ history: WorkflowHistoryEntry[] }>(
+      'GET', `/api/proposals/${proposalId}/workflow/history`
+    ),
+  listRtecGroups: () =>
+    request<{ groups: RtecGroupSummary[] }>('GET', '/api/admin/rtec-groups'),
+};
+
+// ── RTEC review and consolidation (Phase 11) ────────────────────────────────
+
+export interface RtecReviewItem {
+  id: string;
+  formSectionId: string | null;
+  remarks: string;
+}
+
+export interface RtecReview {
+  id: string;
+  proposalId: string;
+  rtecGroupId: string;
+  reviewerUserId: string;
+  status: string;
+  isSubmitted: boolean;
+  submittedAt: string | null;
+  overallRemarks: string | null;
+  items: RtecReviewItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RtecConsolidation {
+  id: string;
+  proposalId: string;
+  rtecGroupId: string;
+  consolidatedBy: string;
+  recommendation: 'FOR_APPROVAL' | 'FOR_REVISION' | 'NOT_RECOMMENDED';
+  consolidatedRemarks: string;
+  isSubmitted: boolean;
+  createdAt: string;
+}
+
+export const rtecApi = {
+  // RTEC_MEMBER actions
+  saveReview: (proposalId: string, body: {
+    rtecGroupId: string;
+    overallRemarks?: string;
+    items?: Array<{ formSectionId?: string; remarks: string }>;
+  }) => request<{ review: RtecReview }>('POST', `/api/proposals/${proposalId}/rtec/reviews`, body),
+
+  submitReview: (proposalId: string) =>
+    request<{ review: RtecReview }>('POST', `/api/proposals/${proposalId}/rtec/reviews/submit`),
+
+  getMyReview: (proposalId: string) =>
+    request<{ review: RtecReview }>('GET', `/api/proposals/${proposalId}/rtec/reviews/mine`),
+
+  // RTEC_HEAD actions
+  getAllReviews: (proposalId: string) =>
+    request<{ reviews: RtecReview[] }>('GET', `/api/proposals/${proposalId}/rtec/reviews`),
+
+  saveConsolidation: (proposalId: string, body: {
+    rtecGroupId: string;
+    recommendation: 'FOR_APPROVAL' | 'FOR_REVISION' | 'NOT_RECOMMENDED';
+    consolidatedRemarks: string;
+  }) => request<{ consolidation: RtecConsolidation }>(
+    'POST', `/api/proposals/${proposalId}/rtec/consolidation`, body
+  ),
+
+  getConsolidation: (proposalId: string) =>
+    request<{ consolidation: RtecConsolidation }>('GET', `/api/proposals/${proposalId}/rtec/consolidation`),
+
+  submitConsolidation: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/rtec/consolidation/submit`
+    ),
+
+  beginConsolidation: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rtec-begin-consolidation`
+    ),
+
+  reopenReview: (proposalId: string, reviewId: string, reason?: string) =>
+    request<{ review: RtecReview }>(
+      'POST', `/api/proposals/${proposalId}/rtec/reviews/${reviewId}/reopen`,
+      { reason }
+    ),
+};
+
+// ── Phase 12: Budget, Accounting, Regional Director ─────────────────────────
+
+export const phase12Api = {
+  // Budget Officer
+  budgetOpen: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/budget-open`
+    ),
+  budgetReturn: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/budget-return`, { comment }
+    ),
+  budgetEndorse: (proposalId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/budget-endorse`, { comment }
+    ),
+  budgetReEndorse: (proposalId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/budget-re-endorse`, { comment }
+    ),
+
+  // Accountant
+  accountingOpen: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/accounting-open`
+    ),
+  accountingReturnToBudget: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/accounting-return-to-budget`, { comment }
+    ),
+  accountingReturnToFocal: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/accounting-return-to-focal`, { comment }
+    ),
+  accountingEndorseToRd: (proposalId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/accounting-endorse-to-rd`, { comment }
+    ),
+
+  // Regional Director
+  rdOpen: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-open`
+    ),
+  rdApprove: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-approve`, { comment }
+    ),
+  rdReject: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-reject`, { comment }
+    ),
+  rdDefer: (proposalId: string, reason: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-defer`, { reason }
+    ),
+  rdResume: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-resume`
+    ),
+  rdReturn: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/rd-return`, { comment }
+    ),
+
+  // Focal re-route (already in workflow.ts from Phase 10)
+  focalReroute: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/focal-reroute`, { comment }
+    ),
+};
+
+// ── Phase 13: Document Export ────────────────────────────────────────────────
+
+export interface ProposalExportResult {
+  exportId: string;
+  url: string;
+  filename: string;
+  format: 'PDF' | 'HTML';
+  generatedAt: string;
+}
+
+export interface ProposalExportMeta {
+  exportId: string;
+  filename: string;
+  format: string;
+  generatedAt: string;
+}
+
+export const exportApi = {
+  generate: (proposalId: string, format?: 'PDF' | 'HTML') =>
+    request<ProposalExportResult>(
+      'POST', `/api/proposals/${proposalId}/export`,
+      format ? { format } : {}
+    ),
+  // Backend returns the same shape as generate() (id/url/filename/format/generatedAt) —
+  // ProposalExportResult is used here rather than ProposalExportMeta so the "Re-download"
+  // button on the detail page has a url to open.
+  getLatest: (proposalId: string) =>
+    request<ProposalExportResult>('GET', `/api/proposals/${proposalId}/export/latest`),
+};
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface NotificationItem {

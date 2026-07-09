@@ -458,5 +458,29 @@ export default async function authRoutes(fastify: FastifyInstance) {
       issueApplicantSession(request.session as never, user);
       return reply.status(200).send({ status: "ok" });
     });
+
+    // Non-production seam for TC-AUTH-15. The real Google callback branch that
+    // rejects a staff-role account (see /api/auth/google/callback above) can't
+    // be reached in tests without a live OAuth round trip, so this drives the
+    // same findApplicantByGoogleId → userHasStaffRole rejection path directly.
+    // It only reports the rejection outcome; it never issues a session.
+    const testGoogleCallbackSchema = z.object({ googleId: z.string().min(1) });
+
+    fastify.post("/api/auth/test-google-callback", async (request, reply) => {
+      const body = testGoogleCallbackSchema.parse(request.body);
+      const existing = await findApplicantByGoogleId(prisma, body.googleId);
+      if (existing && userHasStaffRole(existing)) {
+        await auditLog(prisma, {
+          actorUserId: existing.id,
+          action: "USER_LOGIN_FAILED",
+          entityType: "users",
+          entityId: existing.id,
+          ipAddress: request.ip,
+          afterState: { reason: "staff_role_via_google" },
+        });
+        return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+      }
+      return reply.status(200).send({ status: "ok" });
+    });
   }
 }

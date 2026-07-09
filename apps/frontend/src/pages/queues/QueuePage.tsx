@@ -24,6 +24,13 @@ export default function QueuePage({
   description: string;
 }) {
   const navigate = useNavigate();
+
+  function detailPath(proposalId: string): string {
+    if (queueKey === "rtec_reviews") return `/rtec/reviews/${proposalId}`;
+    if (queueKey === "rtec_consolidation") return `/rtec/consolidation/${proposalId}`;
+    return `/proposals/${proposalId}`;
+  }
+
   const [data, setData] = useState<QueueResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +87,7 @@ export default function QueuePage({
                 <tr
                   key={proposal.id}
                   className={styles.clickRow}
-                  onClick={() => navigate(`/proposals/${proposal.id}`)}
+                  onClick={() => navigate(detailPath(proposal.id))}
                 >
                   <td>{proposal.title}</td>
                   <td>{proposal.proposalType.name}</td>

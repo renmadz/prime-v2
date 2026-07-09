@@ -24,7 +24,7 @@ services:
 
   # ─────────────────────────────────────────────────────────
   # prime-postgres-test — isolated test database on port 5433
-  # Used by `npm run test` in apps/backend.
+  # Used by `npm run test:local` in apps/backend.
   # Credentials are fixed/public — this DB never holds real data.
   # ─────────────────────────────────────────────────────────
   prime-postgres-test:
@@ -62,6 +62,11 @@ services:
       - ./apps/backend/prisma:/app/prisma
     environment:
       NODE_ENV: development
+      # Presigned download URLs (attachments, exports) must be signed against
+      # a host the browser can resolve — the internal "prime-minio" Docker
+      # hostname used for server-to-MinIO calls isn't reachable from the host.
+      # Port 9010 is the host-mapped MinIO port set above.
+      MINIO_PUBLIC_ENDPOINT: localhost:9010
 
   prime-frontend:
     build:
@@ -75,3 +80,12 @@ services:
       - ./apps/frontend/vite.config.ts:/app/vite.config.ts
     ports:
       - "5173:5173"
+    healthcheck:
+      # Dev runs vite on 5173, not nginx on 80 — override the base check
+      # (which would otherwise report a healthy dev container as unhealthy).
+      # 127.0.0.1, not localhost — see the note in docker-compose.yml.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

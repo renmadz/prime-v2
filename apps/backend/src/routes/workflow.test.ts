@@ -33,7 +33,7 @@ function sessionCookieHeader(response: { cookies: Array<{ name: string; value: s
   return cookie ? `sessionId=${cookie.value}` : "";
 }
 
-let ipCounter = 600;
+let ipCounter = 900;
 function nextIp() {
   ipCounter += 1;
   return `10.0.8.${ipCounter}`;
@@ -63,6 +63,14 @@ async function ensureWorkflowTransitions() {
     { fromStatus: "UNDER_FOCAL_REVIEW", toStatus: "ENDORSED_TO_RTEC", actionCode: "ENDORSE_TO_RTEC", actorRole: "PROJECT_FOCAL" },
     { fromStatus: "RETURNED_TO_FOCAL_BY_RTEC", toStatus: "ENDORSED_TO_RTEC", actionCode: "RETURN_TO_RTEC", actorRole: "PROJECT_FOCAL" },
     { fromStatus: "RETURNED_TO_FOCAL_BY_RTEC", toStatus: "ENDORSED_TO_BUDGET", actionCode: "ENDORSE_TO_BUDGET", actorRole: "PROJECT_FOCAL" },
+    // Phase 11 RTEC transitions
+    { fromStatus: "ENDORSED_TO_RTEC", toStatus: "UNDER_RTEC_REVIEW", actionCode: "CONFIRM_RTEC_ASSIGNMENT", actorRole: "SYSTEM" },
+    { fromStatus: "UNDER_RTEC_REVIEW", toStatus: "RTEC_MEMBER_REVIEWS_COMPLETE", actionCode: "RTEC_REVIEWS_COMPLETE", actorRole: "SYSTEM" },
+    { fromStatus: "RTEC_MEMBER_REVIEWS_COMPLETE", toStatus: "UNDER_RTEC_HEAD_CONSOLIDATION", actionCode: "RTEC_BEGIN_CONSOLIDATION", actorRole: "RTEC_HEAD" },
+    { fromStatus: "UNDER_RTEC_HEAD_CONSOLIDATION", toStatus: "RETURNED_TO_FOCAL_BY_RTEC", actionCode: "RTEC_SUBMIT_RECOMMENDATION", actorRole: "RTEC_HEAD" },
+    { fromStatus: "RETURNED_TO_FOCAL_BY_RTEC", toStatus: "FOR_APPLICANT_REVISION_AFTER_RTEC", actionCode: "RETURN_TO_APPLICANT", actorRole: "PROJECT_FOCAL" },
+    // Phase 12 Focal re-route transition
+    { fromStatus: "RETURNED_BY_ACCOUNTING", toStatus: "UNDER_FOCAL_REVIEW", actionCode: "FOCAL_REROUTE", actorRole: "PROJECT_FOCAL" },
   ];
 
   for (const t of transitions) {
@@ -488,7 +496,7 @@ describe("Workflow routes (Phase 10)", () => {
   });
 
   // ── TC-WF-03 ───────────────────────────────────────────────────────────────
-  it("TC-WF-03: endorse-to-rtec → 200, status ENDORSED_TO_RTEC, history row written", async () => {
+  it("TC-WF-03: endorse-to-rtec → 200, auto-advances to UNDER_RTEC_REVIEW (Phase 11), ENDORSE_TO_RTEC history row written", async () => {
     const { proposal } = await createProposalWithStatus(
       applicantUserId,
       proposalTypeId,
@@ -510,9 +518,11 @@ describe("Workflow routes (Phase 10)", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as { status: string };
-    expect(body.status).toBe("ENDORSED_TO_RTEC");
+    // Phase 11: endorse-to-rtec auto-chains ENDORSED_TO_RTEC -> UNDER_RTEC_REVIEW
+    // in the same request (no separate manual confirmation step exists in this MVP).
+    expect(body.status).toBe("UNDER_RTEC_REVIEW");
 
-    // Verify history row written
+    // Verify history row written for the ENDORSE_TO_RTEC leg specifically
     const historyRow = await db.proposalWorkflowHistory.findFirst({
       where: {
         proposalId: proposal.id,
@@ -522,6 +532,17 @@ describe("Workflow routes (Phase 10)", () => {
     expect(historyRow).not.toBeNull();
     expect(historyRow?.fromStatus).toBe("UNDER_FOCAL_REVIEW");
     expect(historyRow?.toStatus).toBe("ENDORSED_TO_RTEC");
+
+    // Verify the auto-advance leg was also recorded
+    const autoAdvanceRow = await db.proposalWorkflowHistory.findFirst({
+      where: {
+        proposalId: proposal.id,
+        workflowAction: "CONFIRM_RTEC_ASSIGNMENT",
+      },
+    });
+    expect(autoAdvanceRow).not.toBeNull();
+    expect(autoAdvanceRow?.fromStatus).toBe("ENDORSED_TO_RTEC");
+    expect(autoAdvanceRow?.toStatus).toBe("UNDER_RTEC_REVIEW");
   });
 
   // ── TC-WF-04 ───────────────────────────────────────────────────────────────
@@ -682,5 +703,57 @@ describe("Workflow routes (Phase 10)", () => {
     expect(auditRow).not.toBeNull();
     expect(auditRow?.actorUserId).toBe(focalUserId);
     expect(auditRow?.entityType).toBe("proposals");
+  });
+
+  // ── TC-WF-09 (Phase 12) ────────────────────────────────────────────────────
+  it("TC-WF-09: Focal re-routes from RETURNED_BY_ACCOUNTING → 200, status UNDER_FOCAL_REVIEW, history written", async () => {
+    const { proposal } = await createProposalWithStatus(
+      applicantUserId,
+      proposalTypeId,
+      "RETURNED_BY_ACCOUNTING",
+      "TC-WF-09 Proposal",
+    );
+    await assignFocal(proposal.id, focalUserId);
+    const cookie = await loginStaff(app, WF_FOCAL_EMAIL, WF_FOCAL_PASSWORD);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/proposals/${proposal.id}/workflow/focal-reroute`,
+      headers: { cookie },
+      payload: { comment: "Re-routing after direct Accountant return." },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { status: string };
+    expect(body.status).toBe("UNDER_FOCAL_REVIEW");
+
+    const historyRow = await db.proposalWorkflowHistory.findFirst({
+      where: { proposalId: proposal.id, workflowAction: "FOCAL_REROUTE" },
+    });
+    expect(historyRow).not.toBeNull();
+    expect(historyRow?.fromStatus).toBe("RETURNED_BY_ACCOUNTING");
+    expect(historyRow?.toStatus).toBe("UNDER_FOCAL_REVIEW");
+  });
+
+  // ── TC-WF-10 (Phase 12) ────────────────────────────────────────────────────
+  it("TC-WF-10: focal-reroute without comment → 422 COMMENT_REQUIRED", async () => {
+    const { proposal } = await createProposalWithStatus(
+      applicantUserId,
+      proposalTypeId,
+      "RETURNED_BY_ACCOUNTING",
+      "TC-WF-10 Proposal",
+    );
+    await assignFocal(proposal.id, focalUserId);
+    const cookie = await loginStaff(app, WF_FOCAL_EMAIL, WF_FOCAL_PASSWORD);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/proposals/${proposal.id}/workflow/focal-reroute`,
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(422);
+    const body = response.json() as { code: string };
+    expect(body.code).toBe("COMMENT_REQUIRED");
   });
 });
