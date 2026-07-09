@@ -30,6 +30,38 @@ Last run 2026-07-09 (Phase 21B gate): A1 7/7 tests (4 files), A2 120/120 tests (
 
 ---
 
+## Phase 13 — Document export gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack. Automated via curl (API) + Playwright (real browser download verification). Files: `apps/backend/prisma/schema.prisma` (`ProposalExport` model), `apps/backend/src/routes/export.ts` (new), `apps/backend/src/routes/export.test.ts` (new, 6 tests), `apps/backend/src/app.ts` (route registration), `apps/backend/src/services/minio.ts` (public-endpoint fix — see below), `apps/backend/prisma/seed.ts` (APPROVED demo proposal), `apps/frontend/src/lib/api.ts` (`exportApi`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Document Export section, 3 new tests).
+
+pdfkit is not installed in this repo — per the task's own fallback instructions, export generation always produces a self-contained HTML file (not PDF). No new packages installed.
+
+**Two real bugs found and fixed during manual verification (not caught by unit tests, which mock MinIO):**
+
+1. **MinIO bucket `prime-attachments` did not exist** in this dev environment — first export attempt failed with `NoSuchBucket`. This predates Phase 13 (the attachments feature has the same dependency and was apparently never exercised against real MinIO end-to-end). Created via `mc mb` — a one-time environment fix, not a code change.
+2. **Presigned URLs were signed with the internal Docker hostname** (`prime-minio:9000`), which a real browser on the host cannot resolve — clicking "Download Export" opened a tab that failed to load (`chrome-error://chromewebdata/`). This is a **shared-service bug in `minio.ts`**, not specific to exports — `attachments.ts` calls the exact same `getPresignedUrl()` and would fail identically. Flagged to the user; fix approved and applied:
+   - `minio.ts` now has two clients: the existing internal one (`getMinioClient`, unchanged, used by `uploadFile`) and a new public-facing one (`getPublicMinioClient`, used only by `getPresignedUrl`) configured via a new `MINIO_PUBLIC_ENDPOINT` env var — `localhost:9010` in local dev (`docker-compose.dev.yml`), documented in `.env.example`, falls back to `MINIO_ENDPOINT` if unset.
+   - A second issue surfaced while fixing the first: the minio SDK's `presignedGetObject` calls `getBucketRegionAsync()` before signing, which dialed the *public* endpoint from *inside* the container — unreachable, `ECONNREFUSED`. Fixed by passing an explicit `region: 'us-east-1'` to the public client, which skips that lookup entirely.
+   - Verified end-to-end via Playwright: real browser click → new tab → `http://localhost:9010/...` → HTML content renders with correct proposal title, status, applicant, and RD decision.
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|--------------|--------|----------|--------|:----:|:----:|
+| D1 | applicant | /proposals/:id (APPROVED) | View detail page | "Document Export" section visible | UI screenshot confirms section renders with "Download Export" button | [x] | [ ] |
+| D2 | applicant | /proposals/:id (APPROVED) | Click "Download Export" | File downloads / new tab opens with content | Playwright: real click → new tab → `localhost:9010/...` → content renders (see fix #2 above) | [x] | [ ] |
+| D3 | applicant | /proposals/:id (APPROVED) | Inspect downloaded file | Contains proposal title and at least one field | Screenshot confirms title "Seeded Approved Proposal — Export Demo", status, applicant, RD Decision section all present | [x] | [ ] |
+| D4 | applicant | /proposals/:id (NOT APPROVED) | View detail page | "Export available once approved" message shown | `POST /export` on an UNDER_RTEC_REVIEW proposal → 409 NOT_APPROVED; UI unit test (TC-EXPORT-UI-02) confirms the message renders and the button is absent | [x] | [ ] |
+| D5 | focal | /proposals/:id (APPROVED) | Click "Download Export" | Same result — assigned staff can export | `POST /export` as focal (PROJECT_FOCAL, assigned) → 200 | [x] | [ ] |
+| D6 | admin | /proposals/:id (APPROVED) | Click "Download Export" | Same result — admin can export | `POST /export` as admin → 200 | [x] | [ ] |
+| D7 | applicant | /proposals/:id (APPROVED) | Click "Download Export" twice | Second click re-generates; "Last generated" shown | Two consecutive `POST /export` calls returned different `exportId`s; `GET /export/latest` returned the second (most recent) — matches the "Re-download" / "Last generated" UI logic | [x] | [ ] |
+| A1 | — | vitest run | Frontend tests | All pass (existing + 3 new TC-EXPORT-UI) | 20/20 passed (17 existing + 3 new) | [x] | [ ] |
+| A2 | — | npm test | Backend tests | All pass (existing + 6 new TC-EXPORT) | 132/132 passed (126 existing + 6 new) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean on both frontend (`tsc -b`) and backend (`tsc --noEmit`) | [x] | [ ] |
+| A4 | — | prisma db push + seed (twice) | Schema migration + idempotency | No errors, no duplicate rows | `db push --accept-data-loss` required (drops the connect-pg-simple-managed `session` table, unrelated to this schema change, self-heals via `createTableIfMissing`); seed ran twice clean, 1 row confirmed for the export demo proposal and its `RdDecision` | [x] | [ ] |
+
+**Automated gate: 4/4 Pass (A1–A4). Manual gate: 7/7 Pass.**
+
+---
+
 ## Phase 12 — Budget, Accounting, Regional Director gate (2026-07-09)
 
 **Executed:** 2026-07-09. Environment: local Docker stack. Automated via curl (API) + Playwright screenshots (UI render). No backend routes changed (constraint honored). Files: `apps/frontend/src/lib/api.ts` (`phase12Api`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Budget/Accountant/RD action panels, 11 modals, Focal re-route button), `apps/frontend/src/pages/proposals/ProposalDetailPage.test.tsx` (3 new tests), `apps/backend/prisma/seed.ts` (3 new idempotent demo proposals).

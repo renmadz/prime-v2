@@ -33,9 +33,10 @@ Related docs:
 | RTEC workflow | Backend + UI done (Phase 11, closed 2026-07-09) — `RtecMemberReviewPage.tsx`, `RtecHeadConsolidationPage.tsx` |
 | Budget / Accounting / RD workflow | Backend + UI done (Phase 12, closed 2026-07-09) — Budget/Accountant/RD action panels on `ProposalDetailPage.tsx` |
 | Full fillable forms (21 specs) | Partial (3 short stubs in seed) |
+| Document export | Done (Phase 13, closed 2026-07-09) — HTML export (pdfkit not installed), `export.ts` |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 13** (Document generation) — **Phase 12 closed 2026-07-09**, automated 4/4 + manual 13/13, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 12; **Phase 11 closed 2026-07-09**, automated 4/4 + manual 8/8; **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
+**You are here:** **Phase 14–15** (Security hardening + full QA regression) — **Phase 13 closed 2026-07-09**, automated 4/4 + manual 7/7, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13; **Phase 12 closed 2026-07-09**, automated 4/4 + manual 13/13; **Phase 11 closed 2026-07-09**, automated 4/4 + manual 8/8; **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 
@@ -221,6 +222,10 @@ Known gap (not fixed, flagged during implementation): `GET /api/admin/rtec-group
 
 - Generation service + download on approved proposals
 - Store in MinIO
+
+**Status:** ✅ **Closed 2026-07-09.** `pdfkit` is not installed in this repo, so export generates a self-contained HTML file per the task's documented fallback (identical flow otherwise: generate → store in MinIO → presigned download URL). New `ProposalExport` Prisma model, `POST /api/proposals/:id/export` + `GET /api/proposals/:id/export/latest` routes (owner/assigned/admin, APPROVED-only), `exportApi` + a "Document Export" section on `ProposalDetailPage.tsx`.
+
+Two real bugs found and fixed during manual verification (both pre-existing, not introduced by this phase — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13 for full detail): the MinIO bucket didn't exist in this dev environment (created via `mc mb`), and presigned URLs were signed with the internal Docker hostname, unreachable from a real browser — fixed in the shared `services/minio.ts` (affects attachments downloads too) via a new `MINIO_PUBLIC_ENDPOINT` env var plus an explicit signing region.
 
 ---
 

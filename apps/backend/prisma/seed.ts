@@ -916,6 +916,79 @@ async function main() {
     ],
     "rd@dev.local demo proposal seeded (ENDORSED_TO_RD)",
   );
+
+  // ── Phase 13: APPROVED demo proposal for export testing ───────────────────────
+  const EXPORT_DEMO_TITLE = "Seeded Approved Proposal — Export Demo";
+  let exportDemoProposal = await prisma.proposal.findFirst({ where: { title: EXPORT_DEMO_TITLE } });
+
+  if (!exportDemoProposal) {
+    const created = await prisma.proposal.create({
+      data: {
+        applicantUserId: applicantUser.id,
+        proposalTypeId: giaProposalType.id,
+        status: "APPROVED",
+        isLocked: true,
+        title: EXPORT_DEMO_TITLE,
+        submittedAt: new Date(),
+      },
+    });
+
+    const version = await prisma.proposalVersion.create({
+      data: {
+        proposalId: created.id,
+        versionNumber: 1,
+        formTemplateVersionId: giaFormVersionForPhase12.id,
+        createdBy: applicantUser.id,
+        statusAtCreation: "DRAFT",
+        isSubmitted: true,
+        submittedAt: new Date(),
+      },
+    });
+
+    exportDemoProposal = await prisma.proposal.update({
+      where: { id: created.id },
+      data: { currentVersionId: version.id },
+    });
+
+    await prisma.rdDecision.create({
+      data: {
+        proposalId: exportDemoProposal.id,
+        proposalVersionId: version.id,
+        decidedBy: rdUser.id,
+        decision: "APPROVED",
+        remarks: "Meets all criteria.",
+        decidedAt: new Date(),
+      },
+    });
+  }
+
+  const exportDemoAssignments: Array<{ userId: string; roleCode: string }> = [
+    { userId: rdUser.id, roleCode: "REGIONAL_DIRECTOR" },
+    { userId: focalUser.id, roleCode: "PROJECT_FOCAL" },
+  ];
+
+  for (const def of exportDemoAssignments) {
+    const existing = await prisma.proposalAssignment.findFirst({
+      where: { proposalId: exportDemoProposal.id, userId: def.userId, roleCode: def.roleCode },
+    });
+    if (existing) {
+      if (!existing.isActive) {
+        await prisma.proposalAssignment.update({ where: { id: existing.id }, data: { isActive: true } });
+      }
+    } else {
+      await prisma.proposalAssignment.create({
+        data: {
+          proposalId: exportDemoProposal.id,
+          userId: def.userId,
+          roleCode: def.roleCode,
+          assignedBy: adminUser.id,
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  console.log("✓ Phase 13: APPROVED demo proposal seeded for export testing");
 }
 
 main()

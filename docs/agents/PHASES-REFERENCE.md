@@ -64,7 +64,19 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 13 — Document Generation / Reports** (Phase 12 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 12). Phase 11 closed 2026-07-09. Phase 10 closed 2026-07-09. Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+**You are here: Phase 14 — Security Hardening** (Phase 13 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13). Phase 12 closed 2026-07-09. Phase 11 closed 2026-07-09. Phase 10 closed 2026-07-09. Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+
+| Phase 13 item | Status |
+|---|---|
+| `ProposalExport` Prisma model | ✅ Done — `apps/backend/prisma/schema.prisma` |
+| Export backend route (`POST /export`, `GET /export/latest`) | ✅ Done — `apps/backend/src/routes/export.ts`, HTML fallback (pdfkit not installed) |
+| `exportApi` + Document Export section on proposal detail | ✅ Done — `apps/frontend/src/lib/api.ts`, `ProposalDetailPage.tsx` |
+| APPROVED demo proposal seed | ✅ Done — `apps/backend/prisma/seed.ts`, idempotent |
+| Backend tests (export.test.ts) | ✅ Done — 6/6 pass, 132/132 total |
+| Frontend tests (TC-EXPORT-UI-01..03) | ✅ Done — 3/3 pass, 20/20 total |
+| **MinIO bucket missing in dev environment** | ⚠️ Fixed — pre-existing gap, not caused by Phase 13; bucket created via `mc mb` (one-time env fix) |
+| **Presigned URLs unreachable from browser** | ⚠️ Fixed — shared bug in `apps/backend/src/services/minio.ts` affecting attachments too; added a public-facing client (`MINIO_PUBLIC_ENDPOINT`) + explicit `region` to skip an internal-only region lookup. User-approved fix, verified via real Playwright browser download. |
+| Phase 13 approval gate | ✅ **Closed 2026-07-09** — automated 4/4 (vitest/npm test/tsc/prisma), manual 7/7 (D1–D7) |
 
 | Phase 12 item | Status |
 |---|---|
@@ -188,7 +200,7 @@ Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form 
 
 ## One Rule
 
-> Phases 0–4 planning gates are **closed**. Phase 21A, 21B, 10, 11, and 12 are **closed**. Active work: **Phase 13**, then harden and deploy (14–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
+> Phases 0–4 planning gates are **closed**. Phase 21A, 21B, 10, 11, 12, and 13 are **closed**. Active work: **Phase 14**, then harden and deploy (15–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
 
 **Start here after git pull:** [../../DEVELOPERS.md](../../DEVELOPERS.md) → [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) → [TEST-MATRIX.md](TEST-MATRIX.md).
 

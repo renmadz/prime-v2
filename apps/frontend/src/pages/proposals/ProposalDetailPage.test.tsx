@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ProposalDetailPage from "./ProposalDetailPage";
 
@@ -71,9 +71,14 @@ vi.mock("../../lib/api", () => ({
     rdReturn: vi.fn(),
     focalReroute: vi.fn(),
   },
+  exportApi: {
+    generate: vi.fn(),
+    getLatest: vi.fn(() => Promise.reject(Object.assign(new Error("Not Found"), { status: 404 }))),
+  },
 }));
 
 import { useAuth } from "../../hooks/useAuth";
+import { exportApi } from "../../lib/api";
 
 let mockProposal: ReturnType<typeof makeProposal>;
 
@@ -148,5 +153,39 @@ describe("ProposalDetailPage — Phase 12 budget/accounting/RD workflow actions"
     expect(screen.getByLabelText("Reject")).toBeInTheDocument();
     expect(screen.getByLabelText("Defer")).toBeInTheDocument();
     expect(screen.getByLabelText("Return to Applicant")).toBeInTheDocument();
+  });
+});
+
+describe("ProposalDetailPage — Phase 13 document export", () => {
+  it('TC-EXPORT-UI-01: status="APPROVED" shows "Download Export" button', async () => {
+    renderPage("APPLICANT", "APPROVED");
+    expect(await screen.findByLabelText("Generate and download proposal export")).toBeInTheDocument();
+  });
+
+  it('TC-EXPORT-UI-02: status="UNDER_RD_REVIEW" (not approved) hides the button and shows the approval message', async () => {
+    renderPage("APPLICANT", "UNDER_RD_REVIEW");
+    expect(await screen.findByText("Export is available once the proposal is approved.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Generate and download proposal export")).not.toBeInTheDocument();
+  });
+
+  it('TC-EXPORT-UI-03: status="APPROVED", generate() resolves — window.open called with the presigned URL', async () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    vi.mocked(exportApi.generate).mockResolvedValueOnce({
+      exportId: "exp-1",
+      url: "https://mock-presigned-url/export.html",
+      filename: "proposal-test.html",
+      format: "HTML",
+      generatedAt: "2026-07-09T00:00:00.000Z",
+    });
+
+    renderPage("APPLICANT", "APPROVED");
+    const button = await screen.findByLabelText("Generate and download proposal export");
+    button.click();
+
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith("https://mock-presigned-url/export.html", "_blank", "noopener,noreferrer");
+    });
+
+    openSpy.mockRestore();
   });
 });

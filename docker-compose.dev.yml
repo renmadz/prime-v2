@@ -62,6 +62,11 @@ services:
       - ./apps/backend/prisma:/app/prisma
     environment:
       NODE_ENV: development
+      # Presigned download URLs (attachments, exports) must be signed against
+      # a host the browser can resolve — the internal "prime-minio" Docker
+      # hostname used for server-to-MinIO calls isn't reachable from the host.
+      # Port 9010 is the host-mapped MinIO port set above.
+      MINIO_PUBLIC_ENDPOINT: localhost:9010
 
   prime-frontend:
     build:

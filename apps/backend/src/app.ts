@@ -27,6 +27,7 @@ import adminRtecGroupsRoutes from "./routes/adminRtecGroups.js";
 import budgetRoutes from "./routes/budget.js";
 import accountingRoutes from "./routes/accounting.js";
 import rdRoutes from "./routes/rd.js";
+import exportRoutes from "./routes/export.js";
 import notificationsRoutes from "./routes/notifications.js";
 import rolesRoutes from "./routes/roles.js";
 import queuesRoutes from "./routes/queues.js";
@@ -124,6 +125,7 @@ export async function buildApp() {
   await app.register(budgetRoutes);
   await app.register(accountingRoutes);
   await app.register(rdRoutes);
+  await app.register(exportRoutes);
   await app.register(notificationsRoutes);
   await app.register(rolesRoutes);
   await app.register(queuesRoutes);

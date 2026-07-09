@@ -7,6 +7,8 @@ import {
   adminApi,
   workflowApi,
   phase12Api,
+  exportApi,
+  type ProposalExportResult,
   type AttachmentMeta,
   type ProposalDetail,
   type ProposalComment,
@@ -138,6 +140,11 @@ export default function ProposalDetailPage() {
   const [workflowHistory, setWorkflowHistory] = useState<WorkflowHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Document export
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [lastExport, setLastExport] = useState<ProposalExportResult | null>(null);
+
   useEffect(() => {
     if (!id) {
       setError("Missing proposal ID.");
@@ -167,6 +174,14 @@ export default function ProposalDetailPage() {
       .finally(() => {
         setLoading(false);
         setHistoryLoading(false);
+      });
+
+    exportApi
+      .getLatest(id)
+      .then(setLastExport)
+      .catch(() => {
+        // 404 (no prior export) or any other failure — silent, export
+        // section just won't show a "last generated" hint
       });
   }, [id]);
 
@@ -693,6 +708,26 @@ export default function ProposalDetailPage() {
       setRdActionError(err instanceof Error ? err.message : "Failed to return proposal to applicant.");
     } finally {
       setRdActioning(false);
+    }
+  }
+
+  async function handleExport() {
+    if (!id) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      const result = await exportApi.generate(id);
+      setLastExport(result);
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      const status = (err as { status?: number }).status;
+      if (status === 409) {
+        setExportError("This proposal must be approved before it can be exported.");
+      } else {
+        setExportError(err instanceof Error ? err.message : "Export failed.");
+      }
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -1907,6 +1942,85 @@ export default function ProposalDetailPage() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      {/* Document Export */}
+      <section style={{ marginBottom: "2rem" }}>
+        <h3
+          style={{
+            margin: "0 0 0.75rem 0",
+            fontSize: "1rem",
+            fontWeight: 600,
+            borderBottom: "1px solid #e5e7eb",
+            paddingBottom: "0.5rem",
+          }}
+        >
+          Document Export
+        </h3>
+
+        {proposal.status !== "APPROVED" && (
+          <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+            Export is available once the proposal is approved.
+          </p>
+        )}
+
+        {exportError && (
+          <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+            {exportError}
+          </p>
+        )}
+
+        {proposal.status === "APPROVED" && (
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+              aria-label="Generate and download proposal export"
+              style={{
+                minHeight: "44px",
+                padding: "0.5rem 1rem",
+                border: "none",
+                borderRadius: "0.375rem",
+                backgroundColor: "#2563eb",
+                color: "#fff",
+                cursor: exporting ? "not-allowed" : "pointer",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              {exporting ? "Generating…" : "Download Export"}
+            </button>
+
+            {lastExport && (
+              <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: 0 }}>
+                Last generated:{" "}
+                {new Date(lastExport.generatedAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}{" "}
+                —{" "}
+                <button
+                  type="button"
+                  onClick={() => window.open(lastExport.url, "_blank", "noopener,noreferrer")}
+                  aria-label="Re-download last export"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#2563eb",
+                    cursor: "pointer",
+                    fontSize: "0.8125rem",
+                    padding: 0,
+                    textDecoration: "underline",
+                  }}
+                >
+                  Re-download
+                </button>
+              </p>
+            )}
+          </div>
         )}
       </section>
 

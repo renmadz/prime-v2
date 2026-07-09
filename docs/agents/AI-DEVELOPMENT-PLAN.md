@@ -15,8 +15,8 @@ repo_entry: DEVELOPERS.md
 execution_plan: docs/agents/DEVELOPER-EXECUTION-PLAN.md
 test_checklist: docs/agents/TEST-MATRIX.md
 phase_status: docs/agents/PHASES-REFERENCE.md
-active_phase: "Phase 13"
-active_phase_name: "Document Generation / Reports (Phase 12 closed 2026-07-09)"
+active_phase: "Phase 14"
+active_phase_name: "Security Hardening (Phase 13 closed 2026-07-09)"
 do_not_implement_yet:
   - Staging/production deploy (Phases 16–20) until Phase 15 QA pass
 local_ui: http://localhost:5173
@@ -62,8 +62,8 @@ pre_push_gate: docs/agents/QA-PUSH-GATE.md
 | **10** | Complete focal workflow UI + history display | ✅ Closed 2026-07-09 |
 | **11** | RTEC review + consolidation backend + UI | ✅ Closed 2026-07-09 |
 | **12** | Budget, Accounting, RD workflow | ✅ Closed 2026-07-09 |
-| **13** | PDF/document export | Now (start here) |
-| **14–15** | Security hardening + full QA regression | Phase 13 gate Pass |
+| **13** | PDF/document export | ✅ Closed 2026-07-09 |
+| **14–15** | Security hardening + full QA regression | Now (start here) |
 | **16–18** | Staging, UAT, production readiness | Phase 15 gate Pass |
 | **19–20** | Production launch + hypercare | Phase 18 sign-off |
 

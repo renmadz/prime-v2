@@ -471,6 +471,36 @@ export const phase12Api = {
     ),
 };
 
+// ── Phase 13: Document Export ────────────────────────────────────────────────
+
+export interface ProposalExportResult {
+  exportId: string;
+  url: string;
+  filename: string;
+  format: 'PDF' | 'HTML';
+  generatedAt: string;
+}
+
+export interface ProposalExportMeta {
+  exportId: string;
+  filename: string;
+  format: string;
+  generatedAt: string;
+}
+
+export const exportApi = {
+  generate: (proposalId: string, format?: 'PDF' | 'HTML') =>
+    request<ProposalExportResult>(
+      'POST', `/api/proposals/${proposalId}/export`,
+      format ? { format } : {}
+    ),
+  // Backend returns the same shape as generate() (id/url/filename/format/generatedAt) —
+  // ProposalExportResult is used here rather than ProposalExportMeta so the "Re-download"
+  // button on the detail page has a url to open.
+  getLatest: (proposalId: string) =>
+    request<ProposalExportResult>('GET', `/api/proposals/${proposalId}/export/latest`),
+};
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface NotificationItem {
