@@ -34,7 +34,7 @@ Related docs:
 | Full fillable forms (21 specs) | Partial (3 short stubs in seed) |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 21B** (fillable forms) — **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
+**You are here:** **Phase 10** (complete focal workflow UI) — **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 

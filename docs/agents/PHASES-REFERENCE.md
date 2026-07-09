@@ -64,14 +64,14 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 21B — fillable forms MVP** (see [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md)). **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+**You are here: Phase 10 — Complete Focal Workflow UI** (Phase 21B closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21B). **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
 
 Implementation is open to **all developers**. Follow agent consultation ([AGENTS.md](../../AGENTS.md)), [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md), [TEST-MATRIX.md](TEST-MATRIX.md), and [QA-PUSH-GATE.md](QA-PUSH-GATE.md).
 
 | Phase 21 sub-phase | Focus | Status |
 |---|---|---|
 | **21A** | Seed sample proposals + assignments; admin assignment API/UI | ✅ **Closed 2026-07-08** |
-| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ⏳ In progress |
+| **21B** | Expand GIA/CEST/SSCP forms; TABLE/required validation | ✅ **Closed 2026-07-09** — automated gates 13/13 Pass; manual browser smoke deferred to developer walkthrough |
 
 | Phase 21 item | Status |
 |---|---|

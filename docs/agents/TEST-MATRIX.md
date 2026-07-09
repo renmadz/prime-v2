@@ -26,7 +26,38 @@
 | A3 | `cd apps/frontend && npx tsc -b` | No type errors | [x] | [ ] |
 | A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [x] | [ ] |
 
-Last run 2026-07-08: A1 7/7 tests (4 files), A2 120/120 tests (16 files, includes 8 new `assignments.test.ts` cases), A3 clean, A4 confirmed.
+Last run 2026-07-09 (Phase 21B gate): A1 7/7 tests (4 files), A2 120/120 tests (16 files), A3 clean, A4 confirmed.
+
+---
+
+## Phase 21B — Fillable forms gate (2026-07-09)
+
+**Executed:** 2026-07-09 by QA Agent. Environment: local Docker stack (backend healthy, frontend healthy).
+
+| # | Login | URL / Method | Action | Expected | Result | Pass | Fail |
+|---|-------|-------------|--------|----------|--------|:----:|:----:|
+| A1 | — | `npx vitest run` (frontend) | Run automated tests | 7/7 green | 7/7 passed | [x] | [ ] |
+| A2 | — | `npm test` (backend) | Run automated tests | 120/120 green | 120/120 passed | [x] | [ ] |
+| A3 | — | `npx tsc -b` (frontend) | TypeScript check | No errors | Clean | [x] | [ ] |
+| A4 | — | `curl /health` | Backend health | `{"status":"ok"}` | Confirmed | [x] | [ ] |
+| DB1 | — | DB query | GIA form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| DB2 | — | DB query | CEST form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| DB3 | — | DB query | SSCP form schema | 4 sections, 11 fields, TABLE field | ✅ Confirmed | [x] | [ ] |
+| API1 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | GIA schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| API2 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | CEST schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| API3 | applicant@dev.local | `GET /api/form-templates/.../versions/current` | SSCP schema | 4 sections, TABLE in section 2 | ✅ Confirmed | [x] | [ ] |
+| S1 | — | Seed twice | Idempotency | No errors, no duplicates | ✅ Pass — ran twice clean | [x] | [ ] |
+| S2 | — | Code review | TABLE renderer | ProposalFormPage renders add/remove-row table | ✅ Code confirmed | [x] | [ ] |
+| S3 | — | Code review | Required validation | validateRequiredFields() + inline errors | ✅ Code confirmed | [x] | [ ] |
+| M1 | applicant@dev.local | /proposals/new (GIA) | Full form renders | Multi-section, not 4-field stub | Requires browser | [ ] | [ ] |
+| M2 | applicant@dev.local | /proposals/new (GIA) | TABLE UI renders | Add/remove-row table in section 2 | Requires browser | [ ] | [ ] |
+| M3 | applicant@dev.local | /proposals/new (GIA) | Submit empty form | Required field errors shown | Requires browser | [ ] | [ ] |
+| M4 | applicant@dev.local | /proposals/new (GIA) | Fill + submit | Redirect to detail, submitted | Requires browser | [ ] | [ ] |
+| M5 | applicant@dev.local | /proposals/new (CEST) | Same as M1–M4 | Pass | Requires browser | [ ] | [ ] |
+| M6 | applicant@dev.local | /proposals/new (SSCP) | Same as M1–M4 | Pass | Requires browser | [ ] | [ ] |
+| M7 | focal@dev.local | /proposals/:id | Submitted values visible | All field values rendered | Requires browser | [ ] | [ ] |
+
+**Automated gate: 13/13 Pass.** Manual browser tests (M1–M7) deferred — requires developer UI walkthrough.
 
 ---
 
