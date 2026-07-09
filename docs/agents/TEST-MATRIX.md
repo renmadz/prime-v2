@@ -30,6 +30,29 @@ Last run 2026-07-09 (Phase 21B gate): A1 7/7 tests (4 files), A2 120/120 tests (
 
 ---
 
+## Phase 10 — Complete focal workflow UI gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack (backend healthy, frontend healthy). Automated via curl (API) + Playwright screenshots (UI render). `apps/frontend/src/lib/api.ts` (`workflowApi`), `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` (Focal Actions panel, 4 modals, Workflow History timeline), `apps/frontend/src/pages/proposals/ProposalDetailPage.test.tsx` (new).
+
+| # | Login | URL | Action | Expected | Result | Pass | Fail |
+|---|-------|-----|--------|----------|--------|:----:|:----:|
+| F1 | focal@dev.local | /queue | View queue | Assigned proposals shown | `GET /api/queues/focal` → 1 proposal returned | [x] | [ ] |
+| F2 | focal@dev.local | /proposals/:id | Click Acknowledge | Status → UNDER_FOCAL_REVIEW, button disappears | `POST .../workflow/acknowledge` → 200, status flipped; UI button conditional on status confirmed via code + screenshot | [x] | [ ] |
+| F3 | focal@dev.local | /proposals/:id | Click Return to Applicant + comment | Status → RETURNED_TO_APPLICANT, modal closes | `POST .../workflow/return-to-applicant` → 200; applicant `GET /api/notifications` confirmed `PROPOSAL_RETURNED_TO_APPLICANT`; modal screenshot confirmed (Return to Applicant dialog renders, required-comment textarea, Cancel/Confirm) | [x] | [ ] |
+| F4 | focal@dev.local | /proposals/:id | Click Endorse to RTEC + select group | Status → UNDER_RTEC_REVIEW (auto-advances) | Backend transition confirmed via direct POST with a known `rtecGroupId` → auto-advanced SUBMITTED→UNDER_FOCAL_REVIEW→ENDORSED_TO_RTEC→UNDER_RTEC_REVIEW. **UI dropdown blocked**: `GET /api/admin/rtec-groups` is `requireRole("ADMIN")`-only in `adminRtecGroups.ts`; `focal@dev.local` holds only `PROJECT_FOCAL`, so the modal's group `<select>` is always empty for a real focal user (confirmed 403 + empty-dropdown screenshot). This is a pre-existing backend authorization gap, not a frontend bug — out of scope to fix under "do not change backend routes." Frontend code matches the task spec exactly (`workflowApi.listRtecGroups()` → `GET /api/admin/rtec-groups`). | [x]¹ | [ ] |
+| F5 | focal@dev.local | /proposals/:id | Click Endorse to Budget | Status → ENDORSED_TO_BUDGET | Seeded workflow transitions (`seed.ts:433`) only allow `ENDORSE_TO_BUDGET` from `RETURNED_TO_FOCAL_BY_RTEC`, not `UNDER_FOCAL_REVIEW` as the task's status table implied — button visibility was corrected to only show on `RETURNED_TO_FOCAL_BY_RTEC` (frontend-only fix, no backend change). Verified end-to-end on a proposal moved to `RETURNED_TO_FOCAL_BY_RTEC`: `POST .../workflow/endorse-to-budget` → 200, status → `ENDORSED_TO_BUDGET` | [x] | [ ] |
+| F6 | focal@dev.local | /proposals/:id | Workflow History section | Timeline shows all transitions with dates | `GET .../workflow/history` returned full ordered history (ACKNOWLEDGE → ENDORSE_TO_RTEC → CONFIRM_RTEC_ASSIGNMENT → ENDORSE_TO_BUDGET); UI timeline screenshot confirmed most-recent-first rendering with human-readable action labels | [x] | [ ] |
+| F7 | focal@dev.local | /proposals/:id | Add internal comment | Comment saved | `POST /api/proposals/:id/comments` (INTERNAL visibility) → 201, comment persisted | [x] | [ ] |
+| A1 | — | vitest run | 3+ new TC-FOCAL tests pass | All pass | 4 new tests (TC-FOCAL-01..04) — 11/11 total frontend tests passed | [x] | [ ] |
+| A2 | — | npm test | backend suite | 120/120 still pass | 120/120 passed, unchanged (no backend files touched) | [x] | [ ] |
+| A3 | — | tsc -b | TypeScript check | Clean | Clean, no errors | [x] | [ ] |
+
+¹ F4's underlying workflow transition (the thing the gate row is testing) passes; the specific manual step "select group in dropdown" cannot be completed by a real focal user due to the pre-existing `/api/admin/rtec-groups` ADMIN-only restriction. Flagged to the user during implementation; user chose to document rather than change the backend route. **Recommendation for a future phase:** either relax `adminRtecGroups.ts` to `requireRole("ADMIN", "PROJECT_FOCAL")`, or add a focal-scoped `GET /api/rtec-groups` route.
+
+**Automated gate: 3/3 Pass (A1–A3).** Manual gate: 7/7 Pass, with F4 caveated per above.
+
+---
+
 ## Phase 21B — Fillable forms gate (2026-07-09)
 
 **Executed:** 2026-07-09 by QA Agent. Environment: local Docker stack (backend healthy, frontend healthy).
@@ -171,13 +194,15 @@ Use **Staff Login** for every `@dev.local` account.
 
 | # | URL | Steps | Expected | Pass | Fail |
 |---|-----|-------|----------|:----:|:----:|
-| F1 | /queue | View queue | Assigned proposals shown | [ ] | [ ] |
-| F2 | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [ ] | [ ] |
-| F3 | /proposals/:id | Return to applicant | RETURNED_TO_APPLICANT + notification | [ ] | [ ] |
-| F4 | /proposals/:id | Endorse to RTEC | ENDORSED_TO_RTEC | [ ] | [ ] |
-| F5 | /proposals/:id | Endorse to budget | ENDORSED_TO_BUDGET | [ ] | [ ] |
-| F6 | /proposals/:id | Workflow history | Timeline visible | [ ] | [ ] |
-| F7 | /proposals/:id | Add internal comment | Comment saved | [ ] | [ ] |
+| F1 | /queue | View queue | Assigned proposals shown | [x] | [ ] |
+| F2 | /proposals/:id | Acknowledge | UNDER_FOCAL_REVIEW | [x] | [ ] |
+| F3 | /proposals/:id | Return to applicant | RETURNED_TO_APPLICANT + notification | [x] | [ ] |
+| F4 | /proposals/:id | Endorse to RTEC | ENDORSED_TO_RTEC | [x]¹ | [ ] |
+| F5 | /proposals/:id | Endorse to budget | ENDORSED_TO_BUDGET | [x] | [ ] |
+| F6 | /proposals/:id | Workflow history | Timeline visible | [x] | [ ] |
+| F7 | /proposals/:id | Add internal comment | Comment saved | [x] | [ ] |
+
+¹ See Phase 10 gate section above — RTEC group dropdown blocked by ADMIN-only `/api/admin/rtec-groups`; underlying transition verified via API.
 
 ---
 

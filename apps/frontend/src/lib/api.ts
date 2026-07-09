@@ -256,6 +256,61 @@ export const assignmentsApi = {
     request<ProposalAssignment>('DELETE', `/api/proposals/${proposalId}/assignments/${assignmentId}`),
 };
 
+// ── Focal workflow (Phase 10) ───────────────────────────────────────────────
+
+export interface WorkflowHistoryEntry {
+  id: string;
+  proposalId: string;
+  fromStatus: string;
+  toStatus: string;
+  actorUserId: string;
+  actorRole: string;
+  workflowAction: string;
+  proposalVersionNumber: number;
+  comment: string | null;
+  transitionedAt: string;
+  sessionReference: string | null;
+}
+
+export interface RtecGroupSummary {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export const workflowApi = {
+  acknowledge: (proposalId: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/acknowledge`
+    ),
+  returnToApplicant: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/return-to-applicant`,
+      { comment }
+    ),
+  endorseToRtec: (proposalId: string, rtecGroupId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/endorse-to-rtec`,
+      { rtecGroupId, comment }
+    ),
+  endorseToBudget: (proposalId: string, comment?: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/endorse-to-budget`,
+      { comment }
+    ),
+  returnToRtec: (proposalId: string, comment: string) =>
+    request<{ id: string; status: string; transitionedAt: string }>(
+      'POST', `/api/proposals/${proposalId}/workflow/return-to-rtec`,
+      { comment }
+    ),
+  getHistory: (proposalId: string) =>
+    request<{ history: WorkflowHistoryEntry[] }>(
+      'GET', `/api/proposals/${proposalId}/workflow/history`
+    ),
+  listRtecGroups: () =>
+    request<RtecGroupSummary[]>('GET', '/api/admin/rtec-groups'),
+};
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface NotificationItem {

@@ -28,13 +28,13 @@ Related docs:
 | UI shell (left nav, all routes) | Done |
 | Proposals (create, save, submit, comments, versions) | Done (minimal 3 form templates) |
 | Admin / queues / notifications / profile pages | Done (API wired) |
-| Focal workflow | Backend done; **UI pending** (buttons not wired) |
+| Focal workflow | Backend done; **UI done** (Phase 10, closed 2026-07-09) |
 | Proposal staff assignment | Done — seed + admin API + admin UI (Phase 21A) |
 | RTEC / Budget / RD workflow | Backend routes done (`rtec.ts`, `budget.ts`, `accounting.ts`, `rd.ts`); UI not verified this round |
 | Full fillable forms (21 specs) | Partial (3 short stubs in seed) |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 10** (complete focal workflow UI) — **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
+**You are here:** **Phase 11** (RTEC review + consolidation) — **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 
@@ -180,6 +180,10 @@ cd apps/backend && npm test          # 16 files, 120 tests — all passed (inclu
 - E2E: submit → acknowledge → endorse
 
 **Test:** focal@dev.local on `/queue` and `/proposals/:id`
+
+**Status:** ✅ **Closed 2026-07-09.** `workflowApi` added to `apps/frontend/src/lib/api.ts`; Focal Actions panel (status-conditional Acknowledge/Return to Applicant/Endorse to RTEC/Endorse to Budget/Return to RTEC buttons + 4 confirmation modals) and a Workflow History timeline added to `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx`. 4 new Vitest tests (TC-FOCAL-01..04). Full results in [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10.
+
+Known gap (not fixed, flagged during implementation): `GET /api/admin/rtec-groups` is `ADMIN`-only in the backend, but the Endorse-to-RTEC modal needs it to populate the group dropdown for `PROJECT_FOCAL` users — the dropdown is empty for a real focal user. The underlying `endorse-to-rtec` workflow transition itself works correctly. Fixing this requires a backend route change (e.g. `requireRole("ADMIN", "PROJECT_FOCAL")` or a new focal-scoped endpoint), which was out of scope for this phase per the "do not change backend routes" constraint — candidate for Phase 11 cleanup.
 
 ---
 

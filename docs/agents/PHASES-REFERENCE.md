@@ -64,7 +64,7 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 10 — Complete Focal Workflow UI** (Phase 21B closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 21B). **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+**You are here: Phase 11 — RTEC Review and Consolidation** (Phase 10 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10). Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
 
 Implementation is open to **all developers**. Follow agent consultation ([AGENTS.md](../../AGENTS.md)), [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md), [TEST-MATRIX.md](TEST-MATRIX.md), and [QA-PUSH-GATE.md](QA-PUSH-GATE.md).
 
@@ -82,10 +82,19 @@ Implementation is open to **all developers**. Follow agent consultation ([AGENTS
 | Fillable dynamic forms (3 seeded types) | ✅ Partial — expand to all 21 forms (21B) |
 | Sample `SUBMITTED_TO_FOCAL` proposal + focal assignment seed | ✅ Done (21A) |
 | Admin staff-assignment API + UI | ✅ Done (21A) — `assignments.ts` route, "Staff Assignments" panel on proposal detail |
-| Focal workflow buttons on proposal detail (acknowledge/return/endorse) | ⏳ Pending — backend routes work, UI not wired (candidate for Phase 10) |
+| Focal workflow buttons on proposal detail (acknowledge/return/endorse) | ✅ Done (Phase 10, 2026-07-09) — `workflowApi` in `api.ts`, Focal Actions panel + 4 modals + Workflow History timeline on `ProposalDetailPage.tsx` |
 | Staging deploy smoke checklist | ⏳ Pending |
 | Phase 21A approval gate | ✅ **Closed 2026-07-08** |
 | Phase 21 (overall) approval gate | ⏳ Open — 21B in progress |
+
+| Phase 10 item | Status |
+|---|---|
+| `workflowApi` (acknowledge, returnToApplicant, endorseToRtec, endorseToBudget, returnToRtec, getHistory, listRtecGroups) | ✅ Done — `apps/frontend/src/lib/api.ts` |
+| Focal Actions panel (status-conditional buttons) + 4 confirmation modals | ✅ Done — `apps/frontend/src/pages/proposals/ProposalDetailPage.tsx` |
+| Workflow History timeline | ✅ Done — same file, reverse-chronological, human-readable action labels |
+| Vitest component tests (TC-FOCAL-01..04) | ✅ Done — `ProposalDetailPage.test.tsx`, 11/11 frontend tests green |
+| Known gap: RTEC group dropdown 403s for real focal user | ⚠️ `GET /api/admin/rtec-groups` is ADMIN-only in the backend; underlying `endorse-to-rtec` transition works when called directly. Not fixed — would require a backend route change, flagged and deferred per user decision. See [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 10, footnote 1. |
+| Phase 10 approval gate | ✅ **Closed 2026-07-09** — automated 3/3 (vitest/npm test/tsc), manual 7/7 (F4 caveated) |
 
 **Previous:** Phase 10 — Workflow and Focal Review (Phase 9 gate closed 2026-07-02)
 

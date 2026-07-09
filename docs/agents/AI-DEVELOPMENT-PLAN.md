@@ -15,10 +15,9 @@ repo_entry: DEVELOPERS.md
 execution_plan: docs/agents/DEVELOPER-EXECUTION-PLAN.md
 test_checklist: docs/agents/TEST-MATRIX.md
 phase_status: docs/agents/PHASES-REFERENCE.md
-active_phase: "Phase 10"
-active_phase_name: "Complete Focal Workflow UI (Phase 21B closed 2026-07-09)"
+active_phase: "Phase 11"
+active_phase_name: "RTEC Review and Consolidation (Phase 10 closed 2026-07-09)"
 do_not_implement_yet:
-  - RTEC workflow (Phase 11) until Phase 10 gate closed
   - Budget/Accounting/RD workflow (Phase 12) until Phase 11 closed
   - PDF export (Phase 13) until Phase 12 closed
   - Staging/production deploy (Phases 16–20) until Phase 15 QA pass
@@ -60,10 +59,10 @@ pre_push_gate: docs/agents/QA-PUSH-GATE.md
 
 | Phase | Feature | Blocked until |
 |-------|---------|---------------|
-| **21A** | Seed sample proposals + assignments; focal UI on proposal detail; notification badge; admin assignment UI | Now (start here) |
-| **21B** | Full GIA/CEST/SSCP forms; TABLE fields; required validation | 21A gate Pass |
-| **10** | Complete focal workflow UI + history display | 21B gate Pass |
-| **11** | RTEC review + consolidation backend + UI | Phase 10 gate Pass |
+| **21A** | Seed sample proposals + assignments; focal UI on proposal detail; notification badge; admin assignment UI | ✅ Closed |
+| **21B** | Full GIA/CEST/SSCP forms; TABLE fields; required validation | ✅ Closed |
+| **10** | Complete focal workflow UI + history display | ✅ Closed 2026-07-09 |
+| **11** | RTEC review + consolidation backend + UI | Now (start here) |
 | **12** | Budget, Accounting, RD workflow | Phase 11 gate Pass |
 | **13** | PDF/document export | Phase 12 gate Pass |
 | **14–15** | Security hardening + full QA regression | Phase 13 gate Pass |

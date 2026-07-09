@@ -5,6 +5,7 @@ import {
   phase9Api,
   assignmentsApi,
   adminApi,
+  workflowApi,
   type AttachmentMeta,
   type ProposalDetail,
   type ProposalComment,
@@ -12,6 +13,8 @@ import {
   type ProposalVersionSummary,
   type ProposalAssignment,
   type AdminUser,
+  type WorkflowHistoryEntry,
+  type RtecGroupSummary,
 } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -19,6 +22,24 @@ const ASSIGNABLE_ROLES = ["PROJECT_FOCAL", "BUDGET_OFFICER", "ACCOUNTANT"];
 
 interface DownloadResponse {
   url: string;
+}
+
+const WORKFLOW_ACTION_LABELS: Record<string, string> = {
+  ACKNOWLEDGE: "Acknowledged by Focal",
+  RETURN_TO_APPLICANT: "Returned to Applicant",
+  ENDORSE_TO_RTEC: "Endorsed to RTEC",
+  CONFIRM_RTEC_ASSIGNMENT: "RTEC Assigned",
+  ENDORSE_TO_BUDGET: "Endorsed to Budget",
+  RETURN_TO_RTEC: "Returned to RTEC",
+  FOCAL_REROUTE: "Re-routed by Focal",
+};
+
+function workflowActionLabel(action: string): string {
+  if (WORKFLOW_ACTION_LABELS[action]) return WORKFLOW_ACTION_LABELS[action];
+  return action
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default function ProposalDetailPage() {
@@ -54,6 +75,32 @@ export default function ProposalDetailPage() {
   const [assignError, setAssignError] = useState<string | null>(null);
   const [unassigningId, setUnassigningId] = useState<string | null>(null);
 
+  // Focal workflow actions
+  const [focalActionError, setFocalActionError] = useState<string | null>(null);
+  const [focalActioning, setFocalActioning] = useState(false);
+
+  // Return-to-applicant modal
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnComment, setReturnComment] = useState("");
+
+  // Endorse-to-RTEC modal
+  const [showEndorseRtecModal, setShowEndorseRtecModal] = useState(false);
+  const [rtecGroups, setRtecGroups] = useState<RtecGroupSummary[]>([]);
+  const [selectedRtecGroupId, setSelectedRtecGroupId] = useState("");
+  const [endorseRtecComment, setEndorseRtecComment] = useState("");
+
+  // Endorse-to-budget modal
+  const [showEndorseBudgetModal, setShowEndorseBudgetModal] = useState(false);
+  const [endorseBudgetComment, setEndorseBudgetComment] = useState("");
+
+  // Return-to-RTEC modal
+  const [showReturnRtecModal, setShowReturnRtecModal] = useState(false);
+  const [returnRtecComment, setReturnRtecComment] = useState("");
+
+  // Workflow history
+  const [workflowHistory, setWorkflowHistory] = useState<WorkflowHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => {
     if (!id) {
       setError("Missing proposal ID.");
@@ -61,24 +108,40 @@ export default function ProposalDetailPage() {
       return;
     }
 
+    setHistoryLoading(true);
     Promise.all([
       api.get<ProposalDetail>(`/api/proposals/${id}`),
       api.get<AttachmentMeta[]>(`/api/proposals/${id}/attachments`),
       phase9Api.getComments(id),
       phase9Api.getVersions(id),
+      workflowApi.getHistory(id),
     ])
-      .then(([proposalData, attachmentData, commentData, versionData]) => {
+      .then(([proposalData, attachmentData, commentData, versionData, historyData]) => {
         setProposal(proposalData);
         setAttachments(attachmentData);
         setComments(commentData);
         setVersions(versionData);
+        setWorkflowHistory(historyData.history);
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Failed to load proposal";
         setError(message);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setHistoryLoading(false);
+      });
   }, [id]);
+
+  const loadWorkflowHistory = () => {
+    if (!id) return;
+    workflowApi
+      .getHistory(id)
+      .then((data) => setWorkflowHistory(data.history))
+      .catch(() => {
+        // silent — history section shows existing data
+      });
+  };
 
   const loadAssignments = () => {
     if (!id) return;
@@ -94,6 +157,19 @@ export default function ProposalDetailPage() {
       .catch(() => setAssignableUsers([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, role]);
+
+  useEffect(() => {
+    if (!showEndorseRtecModal) return;
+    workflowApi
+      .listRtecGroups()
+      .then((groups) => {
+        setRtecGroups(groups);
+        if (groups.length === 1) {
+          setSelectedRtecGroupId(groups[0].id);
+        }
+      })
+      .catch(() => setRtecGroups([]));
+  }, [showEndorseRtecModal]);
 
   async function handleDownload(attachmentId: string) {
     if (!id) return;
@@ -204,10 +280,111 @@ export default function ProposalDetailPage() {
     }
   }
 
+  async function handleAcknowledge() {
+    if (!id) return;
+    setFocalActionError(null);
+    setFocalActioning(true);
+    try {
+      const result = await workflowApi.acknowledge(id);
+      setProposal((prev) => (prev ? { ...prev, status: result.status } : prev));
+      loadWorkflowHistory();
+    } catch (err: unknown) {
+      setFocalActionError(err instanceof Error ? err.message : "Failed to acknowledge proposal.");
+    } finally {
+      setFocalActioning(false);
+    }
+  }
+
+  async function handleReturnToApplicant() {
+    if (!id) return;
+    if (!returnComment.trim()) {
+      setFocalActionError("A comment is required to return the proposal to the applicant.");
+      return;
+    }
+    setFocalActionError(null);
+    setFocalActioning(true);
+    try {
+      const result = await workflowApi.returnToApplicant(id, returnComment);
+      setProposal((prev) => (prev ? { ...prev, status: result.status } : prev));
+      setShowReturnModal(false);
+      setReturnComment("");
+      loadWorkflowHistory();
+    } catch (err: unknown) {
+      setFocalActionError(err instanceof Error ? err.message : "Failed to return proposal to applicant.");
+    } finally {
+      setFocalActioning(false);
+    }
+  }
+
+  async function handleEndorseToRtec() {
+    if (!id) return;
+    if (!selectedRtecGroupId) {
+      setFocalActionError("Select an RTEC group to endorse this proposal to.");
+      return;
+    }
+    setFocalActionError(null);
+    setFocalActioning(true);
+    try {
+      const result = await workflowApi.endorseToRtec(
+        id,
+        selectedRtecGroupId,
+        endorseRtecComment || undefined,
+      );
+      setProposal((prev) => (prev ? { ...prev, status: result.status } : prev));
+      setShowEndorseRtecModal(false);
+      setEndorseRtecComment("");
+      setSelectedRtecGroupId("");
+      loadWorkflowHistory();
+    } catch (err: unknown) {
+      setFocalActionError(err instanceof Error ? err.message : "Failed to endorse proposal to RTEC.");
+    } finally {
+      setFocalActioning(false);
+    }
+  }
+
+  async function handleEndorseToBudget() {
+    if (!id) return;
+    setFocalActionError(null);
+    setFocalActioning(true);
+    try {
+      const result = await workflowApi.endorseToBudget(id, endorseBudgetComment || undefined);
+      setProposal((prev) => (prev ? { ...prev, status: result.status } : prev));
+      setShowEndorseBudgetModal(false);
+      setEndorseBudgetComment("");
+      loadWorkflowHistory();
+    } catch (err: unknown) {
+      setFocalActionError(err instanceof Error ? err.message : "Failed to endorse proposal to budget.");
+    } finally {
+      setFocalActioning(false);
+    }
+  }
+
+  async function handleReturnToRtec() {
+    if (!id) return;
+    if (!returnRtecComment.trim()) {
+      setFocalActionError("A comment is required to return the proposal to RTEC.");
+      return;
+    }
+    setFocalActionError(null);
+    setFocalActioning(true);
+    try {
+      const result = await workflowApi.returnToRtec(id, returnRtecComment);
+      setProposal((prev) => (prev ? { ...prev, status: result.status } : prev));
+      setShowReturnRtecModal(false);
+      setReturnRtecComment("");
+      loadWorkflowHistory();
+    } catch (err: unknown) {
+      setFocalActionError(err instanceof Error ? err.message : "Failed to return proposal to RTEC.");
+    } finally {
+      setFocalActioning(false);
+    }
+  }
+
   // Determine if current user is the proposal owner.
   // useAuth returns a stub — in production this would be the real user id.
   const isApplicant = role === "APPLICANT";
   const isAdmin = role === "ADMIN";
+  const isFocal = role === "PROJECT_FOCAL";
 
   if (loading) {
     return <p style={{ padding: "1rem" }}>Loading proposal…</p>;
@@ -355,6 +532,147 @@ export default function ProposalDetailPage() {
         <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "1rem" }}>
           {resubmitError}
         </p>
+      )}
+
+      {/* Focal workflow actions */}
+      {isFocal && (
+        <section
+          aria-label="Focal workflow actions"
+          style={{ marginBottom: "2rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", padding: "1rem" }}
+        >
+          <h3
+            style={{
+              margin: "0 0 0.75rem 0",
+              fontSize: "1rem",
+              fontWeight: 600,
+              borderBottom: "1px solid #e5e7eb",
+              paddingBottom: "0.5rem",
+            }}
+          >
+            Focal Actions
+          </h3>
+
+          {focalActionError && (
+            <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+              {focalActionError}
+            </p>
+          )}
+
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            {(proposal.status === "SUBMITTED_TO_FOCAL" || proposal.status === "RESUBMITTED_TO_FOCAL") && (
+              <button
+                type="button"
+                onClick={() => void handleAcknowledge()}
+                disabled={focalActioning}
+                aria-label="Acknowledge proposal"
+                style={{
+                  minHeight: "44px",
+                  padding: "0.5rem 1rem",
+                  border: "none",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#2563eb",
+                  color: "#fff",
+                  cursor: focalActioning ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  opacity: focalActioning ? 0.6 : 1,
+                }}
+              >
+                {focalActioning ? "Processing…" : "Acknowledge"}
+              </button>
+            )}
+
+            {proposal.status === "UNDER_FOCAL_REVIEW" && (
+              <button
+                type="button"
+                onClick={() => setShowReturnModal(true)}
+                disabled={focalActioning}
+                aria-label="Return proposal to applicant"
+                style={{
+                  minHeight: "44px",
+                  padding: "0.5rem 1rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#fff",
+                  cursor: focalActioning ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  opacity: focalActioning ? 0.6 : 1,
+                }}
+              >
+                Return to Applicant
+              </button>
+            )}
+
+            {proposal.status === "UNDER_FOCAL_REVIEW" && (
+              <button
+                type="button"
+                onClick={() => setShowEndorseRtecModal(true)}
+                disabled={focalActioning}
+                aria-label="Endorse proposal to RTEC"
+                style={{
+                  minHeight: "44px",
+                  padding: "0.5rem 1rem",
+                  border: "none",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#16a34a",
+                  color: "#fff",
+                  cursor: focalActioning ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  opacity: focalActioning ? 0.6 : 1,
+                }}
+              >
+                Endorse to RTEC
+              </button>
+            )}
+
+            {proposal.status === "RETURNED_TO_FOCAL_BY_RTEC" && (
+              <button
+                type="button"
+                onClick={() => setShowEndorseBudgetModal(true)}
+                disabled={focalActioning}
+                aria-label="Endorse proposal to budget"
+                style={{
+                  minHeight: "44px",
+                  padding: "0.5rem 1rem",
+                  border: "none",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#16a34a",
+                  color: "#fff",
+                  cursor: focalActioning ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  opacity: focalActioning ? 0.6 : 1,
+                }}
+              >
+                Endorse to Budget
+              </button>
+            )}
+
+            {proposal.status === "RETURNED_TO_FOCAL_BY_RTEC" && (
+              <button
+                type="button"
+                onClick={() => setShowReturnRtecModal(true)}
+                disabled={focalActioning}
+                aria-label="Return proposal to RTEC"
+                style={{
+                  minHeight: "44px",
+                  padding: "0.5rem 1rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  backgroundColor: "#fff",
+                  cursor: focalActioning ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  opacity: focalActioning ? 0.6 : 1,
+                }}
+              >
+                Return to RTEC
+              </button>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Admin: staff assignment panel */}
@@ -802,6 +1120,287 @@ export default function ProposalDetailPage() {
           </button>
         </div>
       </section>
+
+      {/* Workflow History */}
+      <section style={{ marginBottom: "2rem" }}>
+        <h3
+          style={{
+            margin: "0 0 0.75rem 0",
+            fontSize: "1rem",
+            fontWeight: 600,
+            borderBottom: "1px solid #e5e7eb",
+            paddingBottom: "0.5rem",
+          }}
+        >
+          Workflow History
+        </h3>
+
+        {historyLoading ? (
+          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>Loading history…</p>
+        ) : workflowHistory.length === 0 ? (
+          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>No workflow history yet.</p>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {[...workflowHistory].reverse().map((entry) => (
+              <li
+                key={entry.id}
+                style={{
+                  padding: "0.75rem",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "0.375rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <p style={{ margin: "0 0 0.25rem 0", fontWeight: 500, fontSize: "0.875rem" }}>
+                  {workflowActionLabel(entry.workflowAction)}
+                </p>
+                <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.75rem", color: "#6b7280" }}>
+                  {entry.actorRole} · {entry.fromStatus.replace(/_/g, " ")} → {entry.toStatus.replace(/_/g, " ")}
+                  {" · "}
+                  {new Date(entry.transitionedAt).toLocaleString()}
+                </p>
+                {entry.comment && (
+                  <p style={{ margin: 0, fontSize: "0.8125rem", color: "#374151" }}>{entry.comment}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Return to Applicant modal */}
+      {showReturnModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="return-modal-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ backgroundColor: "#fff", borderRadius: "0.5rem", padding: "1.5rem", maxWidth: "420px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <h3 id="return-modal-title" style={{ margin: "0 0 0.75rem 0", fontSize: "1rem" }}>
+              Return to Applicant
+            </h3>
+            <textarea
+              value={returnComment}
+              onChange={(e) => setReturnComment(e.target.value)}
+              placeholder="Comment (required)…"
+              rows={4}
+              aria-label="Return to applicant comment"
+              style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.25rem", fontSize: "0.875rem", resize: "vertical", boxSizing: "border-box", marginBottom: "1rem" }}
+            />
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnComment("");
+                }}
+                aria-label="Cancel return to applicant"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", backgroundColor: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleReturnToApplicant()}
+                disabled={focalActioning}
+                aria-label="Confirm return to applicant"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "none", borderRadius: "0.375rem", backgroundColor: "#7c3aed", color: "#fff", cursor: focalActioning ? "not-allowed" : "pointer", fontSize: "0.875rem", opacity: focalActioning ? 0.7 : 1 }}
+              >
+                {focalActioning ? "Processing…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Endorse to RTEC modal */}
+      {showEndorseRtecModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="endorse-rtec-modal-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ backgroundColor: "#fff", borderRadius: "0.5rem", padding: "1.5rem", maxWidth: "420px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <h3 id="endorse-rtec-modal-title" style={{ margin: "0 0 0.75rem 0", fontSize: "1rem" }}>
+              Endorse to RTEC
+            </h3>
+            <label htmlFor="rtec-group-select" style={{ display: "block", marginBottom: "0.25rem", fontWeight: 500, fontSize: "0.8125rem" }}>
+              RTEC Group
+            </label>
+            <select
+              id="rtec-group-select"
+              aria-label="Select RTEC group"
+              value={selectedRtecGroupId}
+              onChange={(e) => setSelectedRtecGroupId(e.target.value)}
+              style={{ width: "100%", minHeight: "44px", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", fontSize: "0.875rem", marginBottom: "0.75rem" }}
+            >
+              <option value="">— Select RTEC group —</option>
+              {rtecGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+            <textarea
+              value={endorseRtecComment}
+              onChange={(e) => setEndorseRtecComment(e.target.value)}
+              placeholder="Comment (optional)…"
+              rows={3}
+              aria-label="Endorse to RTEC comment"
+              style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.25rem", fontSize: "0.875rem", resize: "vertical", boxSizing: "border-box", marginBottom: "1rem" }}
+            />
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEndorseRtecModal(false);
+                  setEndorseRtecComment("");
+                  setSelectedRtecGroupId("");
+                }}
+                aria-label="Cancel endorse to RTEC"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", backgroundColor: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleEndorseToRtec()}
+                disabled={focalActioning}
+                aria-label="Confirm endorse to RTEC"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "none", borderRadius: "0.375rem", backgroundColor: "#16a34a", color: "#fff", cursor: focalActioning ? "not-allowed" : "pointer", fontSize: "0.875rem", opacity: focalActioning ? 0.7 : 1 }}
+              >
+                {focalActioning ? "Processing…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Endorse to Budget modal */}
+      {showEndorseBudgetModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="endorse-budget-modal-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ backgroundColor: "#fff", borderRadius: "0.5rem", padding: "1.5rem", maxWidth: "420px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <h3 id="endorse-budget-modal-title" style={{ margin: "0 0 0.75rem 0", fontSize: "1rem" }}>
+              Endorse to Budget
+            </h3>
+            <textarea
+              value={endorseBudgetComment}
+              onChange={(e) => setEndorseBudgetComment(e.target.value)}
+              placeholder="Comment (optional)…"
+              rows={3}
+              aria-label="Endorse to budget comment"
+              style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.25rem", fontSize: "0.875rem", resize: "vertical", boxSizing: "border-box", marginBottom: "1rem" }}
+            />
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEndorseBudgetModal(false);
+                  setEndorseBudgetComment("");
+                }}
+                aria-label="Cancel endorse to budget"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", backgroundColor: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleEndorseToBudget()}
+                disabled={focalActioning}
+                aria-label="Confirm endorse to budget"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "none", borderRadius: "0.375rem", backgroundColor: "#16a34a", color: "#fff", cursor: focalActioning ? "not-allowed" : "pointer", fontSize: "0.875rem", opacity: focalActioning ? 0.7 : 1 }}
+              >
+                {focalActioning ? "Processing…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return to RTEC modal */}
+      {showReturnRtecModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="return-rtec-modal-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div style={{ backgroundColor: "#fff", borderRadius: "0.5rem", padding: "1.5rem", maxWidth: "420px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <h3 id="return-rtec-modal-title" style={{ margin: "0 0 0.75rem 0", fontSize: "1rem" }}>
+              Return to RTEC
+            </h3>
+            <textarea
+              value={returnRtecComment}
+              onChange={(e) => setReturnRtecComment(e.target.value)}
+              placeholder="Comment (required)…"
+              rows={4}
+              aria-label="Return to RTEC comment"
+              style={{ width: "100%", padding: "0.5rem", border: "1px solid #d1d5db", borderRadius: "0.25rem", fontSize: "0.875rem", resize: "vertical", boxSizing: "border-box", marginBottom: "1rem" }}
+            />
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnRtecModal(false);
+                  setReturnRtecComment("");
+                }}
+                aria-label="Cancel return to RTEC"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", backgroundColor: "#fff", cursor: "pointer", fontSize: "0.875rem" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleReturnToRtec()}
+                disabled={focalActioning}
+                aria-label="Confirm return to RTEC"
+                style={{ minHeight: "44px", padding: "0.5rem 1rem", border: "none", borderRadius: "0.375rem", backgroundColor: "#7c3aed", color: "#fff", cursor: focalActioning ? "not-allowed" : "pointer", fontSize: "0.875rem", opacity: focalActioning ? 0.7 : 1 }}
+              >
+                {focalActioning ? "Processing…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resubmit confirmation dialog */}
       {showResubmitConfirm && (
