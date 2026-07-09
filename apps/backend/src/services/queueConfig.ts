@@ -60,8 +60,11 @@ export const QUEUE_DEFINITIONS: Record<QueueKey, QueueDefinition> = {
     allowedRoles: ["ACCOUNTANT", "ADMIN"],
   },
   rd: {
+    // No assignmentRoleCode: Roles-and-Permissions §3.1 marks REGIONAL_DIRECTOR
+    // "✅" (unconditional), not "Assigned" — same tier as ADMIN. No workflow
+    // route ever creates a REGIONAL_DIRECTOR ProposalAssignment, so gating this
+    // queue on one would leave it permanently empty for real proposals.
     label: "Regional Director Queue",
-    assignmentRoleCode: "REGIONAL_DIRECTOR",
     statuses: ["ENDORSED_TO_RD", "UNDER_RD_REVIEW"],
     allowedRoles: ["REGIONAL_DIRECTOR", "ADMIN"],
   },

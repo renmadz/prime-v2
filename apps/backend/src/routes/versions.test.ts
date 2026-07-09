@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { buildApp } from "../app.js";
 import { ROLE_CODES } from "../utils/roles.js";
@@ -85,11 +86,52 @@ async function loginApplicant(app: FastifyInstance, userId: string) {
   return sessionCookieHeader(response);
 }
 
+async function createStaffUser(email: string, password: string, roleCode: string) {
+  const passwordHash = await bcrypt.hash(password, 12);
+  const role = await db.role.findUniqueOrThrow({ where: { code: roleCode } });
+  return db.user.create({
+    data: {
+      email,
+      passwordHash,
+      firstName: "Test",
+      lastName: roleCode,
+      isActive: true,
+      mustChangePassword: false,
+      userRoles: { create: [{ roleId: role.id }] },
+    },
+  });
+}
+
+async function loginStaff(app: FastifyInstance, email: string, password: string) {
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/auth/staff/login",
+    remoteAddress: nextIp(),
+    payload: { email, password },
+  });
+  if (response.statusCode !== 200) {
+    throw new Error(`Failed to create staff session for ${email}: ${response.statusCode} ${response.body}`);
+  }
+  return sessionCookieHeader(response);
+}
+
+async function assignRole(proposalId: string, userId: string, roleCode: string) {
+  return db.proposalAssignment.create({
+    data: { proposalId, userId, roleCode, assignedBy: userId, isActive: true },
+  });
+}
+
 // ── Test identifiers for cleanup ─────────────────────────────────────────────
+
+const TEST_STAFF_PASSWORD = "VerTestStaffPassw0rd!";
+const RTEC_MEMBER_EMAIL = "ver-rtec-member@test.local";
+const RD_EMAIL = "ver-rd@test.local";
 
 const TEST_EMAILS = [
   "ver-owner@test.local",
   "ver-other@test.local",
+  RTEC_MEMBER_EMAIL,
+  RD_EMAIL,
 ];
 
 const TEST_PROPOSAL_TYPE_CODE = "PT-VER-TEST-01";
@@ -122,6 +164,12 @@ async function cleanupTestData() {
         });
       }
 
+      await db.proposalAssignment.deleteMany({
+        where: { proposalId: { in: proposalIds } },
+      });
+      await db.auditLog.deleteMany({
+        where: { entityType: "proposals", entityId: { in: proposalIds } },
+      });
       await db.proposal.updateMany({
         where: { id: { in: proposalIds } },
         data: { currentVersionId: null },
@@ -464,6 +512,35 @@ describe("Versions routes", () => {
         expect(curr).toBeGreaterThanOrEqual(prev);
       }
     }
+  });
+
+  // ── TC-VER-05 (Phase 14–15 RBAC fix #3) ─────────────────────────────────────
+  it("TC-VER-05: RTEC_MEMBER assigned to the proposal → compare versions → 403 (Roles-and-Permissions §3.1 marks Compare versions ❌ for RTEC_MEMBER)", async () => {
+    const member = await createStaffUser(RTEC_MEMBER_EMAIL, TEST_STAFF_PASSWORD, "RTEC_MEMBER");
+    await assignRole(sharedProposalId, member.id, "RTEC_MEMBER");
+    const memberCookie = await loginStaff(app, RTEC_MEMBER_EMAIL, TEST_STAFF_PASSWORD);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/proposals/${sharedProposalId}/versions/${version1Id}/compare/${version2Id}`,
+      headers: { cookie: memberCookie },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  // ── TC-VER-06 (Phase 14–15 RBAC fix #1) ──────────────────────────────────────
+  it("TC-VER-06: REGIONAL_DIRECTOR with no ProposalAssignment on this proposal → compare versions → 200 (Roles-and-Permissions §3.1 marks RD unconditional)", async () => {
+    await createStaffUser(RD_EMAIL, TEST_STAFF_PASSWORD, "REGIONAL_DIRECTOR");
+    const rdCookie = await loginStaff(app, RD_EMAIL, TEST_STAFF_PASSWORD);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/proposals/${sharedProposalId}/versions/${version1Id}/compare/${version2Id}`,
+      headers: { cookie: rdCookie },
+    });
+
+    expect(response.statusCode).toBe(200);
   });
 
   // ── TC-RESUB-01 ────────────────────────────────────────────────────────────

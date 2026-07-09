@@ -36,7 +36,7 @@ Related docs:
 | Document export | Done (Phase 13, closed 2026-07-09) — HTML export (pdfkit not installed), `export.ts` |
 | Staging deploy | Pending |
 
-**You are here:** **Phase 14–15** (Security hardening + full QA regression) — **Phase 13 closed 2026-07-09**, automated 4/4 + manual 7/7, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13; **Phase 12 closed 2026-07-09**, automated 4/4 + manual 13/13; **Phase 11 closed 2026-07-09**, automated 4/4 + manual 8/8; **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
+**You are here:** **Phase 16** (Staging deployment) — **Phase 14–15 closed 2026-07-09**, RBAC audit (4 confirmed findings, all fixed), security spot checks 9/9, automated 140/140 + 20/20 (both tsc clean), full TEST-MATRIX re-certified, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 14–15; **Phase 13 closed 2026-07-09**, automated 4/4 + manual 7/7, see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13; **Phase 12 closed 2026-07-09**, automated 4/4 + manual 13/13; **Phase 11 closed 2026-07-09**, automated 4/4 + manual 8/8; **Phase 10 closed 2026-07-09**, automated 3/3 + manual 7/7 (F4 caveated); **Phase 21B closed 2026-07-09**, automated gates 13/13 Pass; **Phase 21A closed 2026-07-08**, all 6 gate tests pass.
 
 ---
 
@@ -234,6 +234,8 @@ Two real bugs found and fixed during manual verification (both pre-existing, not
 - RBAC review on all new routes
 - Full regression (backend + frontend tests)
 - Complete [TEST-MATRIX.md](TEST-MATRIX.md) full pass
+
+**Status:** ✅ **Closed 2026-07-09.** RBAC audit of `workflow.ts`, `rtec.ts`, `adminRtecGroups.ts`, `budget.ts`, `accounting.ts`, `rd.ts`, `export.ts`, `assignments.ts`, `attachments.ts`, `comments.ts`, `submission.ts`, `versions.ts`, `queues.ts` against `docs/requirements/PRIME-v2-Roles-and-Permissions.md` found 4 confirmed violations, all fixed: (1) REGIONAL_DIRECTOR wasn't treated as unconditional (§3.1 "✅") in the `canAccessProposal` helper duplicated across `proposals.ts`/`export.ts`/`attachments.ts`/`comments.ts`/`versions.ts` — masked in Phase 12 manual testing because `seed.ts` manually assigns `rd@dev.local` to its two demo proposals, but any real (non-seeded) proposal reaching RD would have been inaccessible; (2) the same root cause emptied `GET /api/queues/rd` permanently for real proposals; (3) RTEC_MEMBER could call the version-compare endpoint despite §3.1 marking it ❌; (4) ADMIN could create/resolve/reopen comments despite §3.3/§5.8 marking those ❌ for ADMIN. Security spot checks S1–S9 (9/9 Pass, S5–S9 new from the findings above). Regression tests added for all 4 fixes (`versions.test.ts` TC-VER-05/06, `comments.test.ts` TC-CMT-09/10, new `queues.test.ts` with 4 tests — this route file had zero prior coverage). Automated: 140/140 backend (132 pre-existing + 8 new) + 20/20 frontend, both `tsc` clean. RISK-16 re-investigated: still reproduces without `--no-file-parallelism` (now surfacing in `export.test.ts`); confirmed as a still-required interim mitigation, real fix (per-worker DB isolation) deferred as a test-infra rework out of this phase's scope. Full TEST-MATRIX re-certified across every section with today's date, not just this phase's rows. Full detail: [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 14–15.
 
 ---
 

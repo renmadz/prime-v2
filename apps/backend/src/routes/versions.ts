@@ -11,7 +11,10 @@ async function canAccessProposal(
   currentUserId: string,
   roles: string[],
 ): Promise<{ allowed: boolean; proposal: Proposal | null }> {
-  if (roles.includes("ADMIN")) {
+  // ADMIN and REGIONAL_DIRECTOR both get unconditional access — Roles-and-
+  // Permissions §3.1 marks REGIONAL_DIRECTOR "✅", not "Assigned", and no
+  // workflow route ever creates a REGIONAL_DIRECTOR ProposalAssignment.
+  if (roles.includes("ADMIN") || roles.includes("REGIONAL_DIRECTOR")) {
     const proposal = await prisma.proposal.findUnique({ where: { id: proposalId } });
     return { allowed: true, proposal };
   }
@@ -60,6 +63,28 @@ export default async function versionsRoutes(fastify: FastifyInstance) {
       }
       if (!allowed) {
         return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+      }
+
+      // Roles-and-Permissions §3.1 "Compare versions": RTEC_MEMBER is ❌ (only
+      // RTEC_HEAD is "Assigned"). RTEC_MEMBER still holds a real
+      // ProposalAssignment (for viewing/reviewing), so the generic allowed
+      // check above isn't enough — block a caller whose only basis for access
+      // is an RTEC_MEMBER assignment.
+      if (!currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("REGIONAL_DIRECTOR")) {
+        const isOwner = proposal.applicantUserId === currentUser.id;
+        if (!isOwner) {
+          const nonMemberAssignment = await prisma.proposalAssignment.findFirst({
+            where: {
+              proposalId: params.id,
+              userId: currentUser.id,
+              isActive: true,
+              roleCode: { not: "RTEC_MEMBER" },
+            },
+          });
+          if (!nonMemberAssignment) {
+            return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+          }
+        }
       }
 
       // Both versions must belong to this proposal

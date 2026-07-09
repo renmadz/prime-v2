@@ -64,7 +64,21 @@ The **21 phases (0–20)** are logically ordered, match the ObraTech framework, 
 
 ## Current Project Status (update as you progress)
 
-**You are here: Phase 14 — Security Hardening** (Phase 13 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 13). Phase 12 closed 2026-07-09. Phase 11 closed 2026-07-09. Phase 10 closed 2026-07-09. Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+**You are here: Phase 16 — Staging Deployment** (Phase 14–15 closed 2026-07-09 — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 14–15). Phase 13 closed 2026-07-09. Phase 12 closed 2026-07-09. Phase 11 closed 2026-07-09. Phase 10 closed 2026-07-09. Phase 21B closed 2026-07-09. **Phase 21A closed 2026-07-08** — 6/6 manual gate tests pass, automated suite green (127/127).
+
+| Phase 14–15 item | Status |
+|---|---|
+| RBAC audit — 13 route files vs Roles-and-Permissions matrix | ✅ Done — 4 confirmed findings, all fixed (see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 14–15 for the full findings table) |
+| Finding #1: REGIONAL_DIRECTOR not unconditional in `canAccessProposal` (proposals/export/attachments/comments/versions) | ✅ Fixed — RD now treated like ADMIN in all 5 duplicated helpers |
+| Finding #2: `GET /api/queues/rd` gated on a `ProposalAssignment` that's never created for real proposals | ✅ Fixed — removed `assignmentRoleCode` from the `rd` queue definition |
+| Finding #3: RTEC_MEMBER could call version-compare (matrix says ❌) | ✅ Fixed — `versions.ts` now excludes RTEC_MEMBER-only assignments |
+| Finding #4: ADMIN could create/resolve/reopen comments (matrix says ❌; §5.8) | ✅ Fixed — `comments.ts` now requires owner-or-assigned for writes, author-only for resolve/reopen |
+| Security spot checks (S1–S9) | ✅ 9/9 Pass — see [TEST-MATRIX.md](TEST-MATRIX.md) § Phase 14–15 |
+| Automated regression (backend/frontend/both tsc) | ✅ 140/140 (132 pre-existing + 8 new regression tests for the RBAC fixes) + 20/20, both clean |
+| Regression tests added for the 4 RBAC fixes | ✅ Done — `versions.test.ts` (TC-VER-05/06), `comments.test.ts` (TC-CMT-09/10), new `queues.test.ts` (previously no coverage) |
+| RISK-16 investigation | ✅ Confirmed still required (reproduces without `--no-file-parallelism`); documented as a known limitation, scripts unchanged — see Risk Register |
+| Full TEST-MATRIX re-certification (all sections) | ✅ Done — every section carries a 2026-07-09 re-verification note |
+| Phase 14–15 approval gate | ✅ **Closed 2026-07-09** |
 
 | Phase 13 item | Status |
 |---|---|
@@ -200,7 +214,7 @@ Phases 0, 1, and 2 approved by supervisor 2026-07-01 (B-01..B-04). Phase 3 form 
 
 ## One Rule
 
-> Phases 0–4 planning gates are **closed**. Phase 21A, 21B, 10, 11, 12, and 13 are **closed**. Active work: **Phase 14**, then harden and deploy (15–20). All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
+> Phases 0–4 planning gates are **closed**. Phase 21A, 21B, 10, 11, 12, 13, and 14–15 are **closed**. Active work: **Phase 16** (staging deployment), then 17–20. All developers may implement when following [AGENTS.md](../../AGENTS.md) and the current phase checklist.
 
 **Start here after git pull:** [../../DEVELOPERS.md](../../DEVELOPERS.md) → [DEVELOPER-EXECUTION-PLAN.md](DEVELOPER-EXECUTION-PLAN.md) → [TEST-MATRIX.md](TEST-MATRIX.md).
 

@@ -121,6 +121,8 @@ const TEST_APPLICANT_EMAILS = [
 ];
 const TEST_STAFF_EMAILS = [
   "cmt-focal@test.local",
+  "cmt-admin@test.local",
+  "cmt-admin2@test.local",
 ];
 const ALL_TEST_EMAILS = [...TEST_APPLICANT_EMAILS, ...TEST_STAFF_EMAILS];
 
@@ -561,5 +563,50 @@ describe("Comments routes", () => {
     expect(body.isResolved).toBe(true);
     expect(body.resolvedAt).toBeDefined();
     expect(typeof body.resolvedAt).toBe("string");
+  });
+
+  // ── TC-CMT-09 (Phase 14–15 RBAC fix #4) ──────────────────────────────────────
+  it("TC-CMT-09: ADMIN (not owner, not assigned) tries to create a comment → 403 (Roles-and-Permissions §3.3 marks ADMIN ❌ for Add comment)", async () => {
+    const adminCookie = await createStaffSession(app, "cmt-admin@test.local", "ADMIN");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/proposals/${sharedProposalId}/comments`,
+      headers: { cookie: adminCookie },
+      payload: {
+        commentType: "GENERAL",
+        visibility: "PUBLIC",
+        body: "Admin should not be able to post this.",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  // ── TC-CMT-10 (Phase 14–15 RBAC fix #4) ──────────────────────────────────────
+  it("TC-CMT-10: ADMIN tries to resolve a comment authored by someone else → 403 (Roles-and-Permissions §3.3 marks ADMIN ❌ for Resolve comment; §5.8)", async () => {
+    const ownerCookie = await loginApplicant(app, ownerUserId);
+
+    const createResp = await app.inject({
+      method: "POST",
+      url: `/api/proposals/${sharedProposalId}/comments`,
+      headers: { cookie: ownerCookie },
+      payload: {
+        commentType: "GENERAL",
+        visibility: "PUBLIC",
+        body: "Comment for TC-CMT-10 — admin must not resolve this.",
+      },
+    });
+    expect(createResp.statusCode).toBe(201);
+    const { id: commentId } = createResp.json() as { id: string };
+
+    const adminCookie = await createStaffSession(app, "cmt-admin2@test.local", "ADMIN");
+    const resolveResp = await app.inject({
+      method: "PATCH",
+      url: `/api/proposals/${sharedProposalId}/comments/${commentId}/resolve`,
+      headers: { cookie: adminCookie },
+    });
+
+    expect(resolveResp.statusCode).toBe(403);
   });
 });

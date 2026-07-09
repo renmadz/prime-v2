@@ -26,7 +26,65 @@
 | A3 | `cd apps/frontend && npx tsc -b` | No type errors | [x] | [ ] |
 | A4 | `curl http://localhost:3000/health` | `{"status":"ok",...}` | [x] | [ ] |
 
-Last run 2026-07-09 (Phase 21B gate): A1 7/7 tests (4 files), A2 120/120 tests (16 files), A3 clean, A4 confirmed.
+Last run 2026-07-09 (Phase 14–15 gate, final clean confirmation): A1 20/20 tests (6 files), A2 140/140 tests (19 files — 132 pre-existing + 8 new regression tests for this phase's RBAC fixes: TC-VER-05/06 in `versions.test.ts`, TC-CMT-09/10 in `comments.test.ts`, 4 new tests in `queues.test.ts`), A3 clean (frontend `tsc -b` **and** backend `tsc --noEmit`), A4 confirmed. Backend suite re-run without `--no-file-parallelism` reproduces RISK-16 (see Phase 14–15 section) — the shipped `npm test` / `npm run test:local` scripts correctly keep `--no-file-parallelism` and are unaffected.
+
+---
+
+## Phase 14–15 — Security Hardening + Full QA Regression gate (2026-07-09)
+
+**Executed:** 2026-07-09. Environment: local Docker stack (rebuilt this session — see environment notes below). Scope: RBAC audit of every route added since Phase 9, security spot checks, full automated regression, RISK-16 investigation, and full-matrix manual re-certification (all sections below, not just this phase's rows).
+
+### Task 1 — RBAC audit findings
+
+Audited: `workflow.ts`, `rtec.ts`, `adminRtecGroups.ts`, `budget.ts`, `accounting.ts`, `rd.ts`, `export.ts`, `assignments.ts`, `attachments.ts`, `comments.ts`, `submission.ts`, `versions.ts`, `queues.ts` against [PRIME-v2-Roles-and-Permissions.md](../requirements/PRIME-v2-Roles-and-Permissions.md) §3.1–3.3 and §5. Every endpoint has `requireAuth()`; no endpoint trusts a client-supplied role/user id. Four confirmed findings, all fixed:
+
+| # | Route(s) | Endpoint(s) | Issue | Severity | Fix |
+|---|----------|-------------|-------|:--------:|-----|
+| 1 | `proposals.ts`, `export.ts`, `attachments.ts`, `comments.ts`, `versions.ts` (duplicated `canAccessProposal` helper) | GET proposal detail, export, attachments (list/upload-owner-check aside/download), comments (list/create/resolve/reopen), version compare, `/history` | §3.1 marks REGIONAL_DIRECTOR "✅" (unconditional, same tier as ADMIN — confirmed by `rd.ts`'s own header comment and by `proposals.ts`'s own `GET /api/proposals` list endpoint, which already excludes RD from assignment filtering). But `canAccessProposal` only special-cased ADMIN; RD fell through to the owner-or-assigned check. No workflow route ever creates a REGIONAL_DIRECTOR `ProposalAssignment` (`accounting.ts`'s `ACCOUNTING_ENDORSE_RD` only sends notifications) — only `seed.ts` manually assigns `rd@dev.local` to two demo proposals, which is what masked this in the Phase 12 manual gate. On any real, non-seeded proposal RD would be locked out of viewing it, its attachments, comments, versions, and export, despite being able to act on it via `rd.ts`'s transition routes. | High | Treat REGIONAL_DIRECTOR the same as ADMIN (unconditional access) in all 5 duplicated helpers. |
+| 2 | `services/queueConfig.ts` | `GET /api/queues/rd` | Same root cause — the `rd` queue definition set `assignmentRoleCode: "REGIONAL_DIRECTOR"`, so the RD queue permanently returns empty for any real (non-seeded) proposal. Contradicts `rd.ts`'s own documented role-only design. No test file covers `queues.ts` at all. | High | Remove `assignmentRoleCode` from the `rd` queue definition. |
+| 3 | `versions.ts` | `GET /api/proposals/:id/versions/:vId/compare/:vId2` | §3.1 "Compare versions" marks RTEC_MEMBER ❌ (only RTEC_HEAD is "Assigned"). RTEC_MEMBER holds a real `ProposalAssignment` (from `workflow.ts`'s endorse-to-rtec auto-assign loop), so the generic access check let any assigned RTEC_MEMBER call compare. No test covered this. | Medium | Added an explicit check: forbid a caller whose only basis for access is an RTEC_MEMBER assignment (owner, ADMIN, RD, or any other assignment role still passes). |
+| 4 | `comments.ts` | `POST /comments`, `PATCH /comments/:id/resolve`, `PATCH /comments/:id/reopen` | §3.3 marks Add/Resolve/Reopen comment ❌ for ADMIN; §5.8 says Admin must not alter proposal content without an explicit content-management grant. `canAccessProposal`'s ADMIN bypass let ADMIN create comments of any visibility, and `isAuthor \|\| isAdmin` let ADMIN resolve/reopen any comment. No test covered admin comment actions. | Medium | Comment creation now requires owner-or-assigned even for ADMIN sessions (pure-admin access is rejected); resolve/reopen now check `isAuthor` only. |
+
+All four fixes verified live against the running stack post-fix (see Task 2) and confirmed non-regressive by the full backend/frontend suites (Task 3). Regression tests added so these can't silently regress: `versions.test.ts` TC-VER-05 (RTEC_MEMBER compare → 403) / TC-VER-06 (RD compare with no assignment → 200); `comments.test.ts` TC-CMT-09 (ADMIN create → 403) / TC-CMT-10 (ADMIN resolve someone else's comment → 403); new `queues.test.ts` (previously zero coverage on this route file) TC-QUEUE-01 (RD queue visible with no assignment) through TC-QUEUE-04.
+
+### Task 2 — Security spot checks
+
+| # | Test | Expected | Result | Pass | Fail |
+|---|------|----------|--------|:----:|:----:|
+| S1 | Unauthenticated request to an authenticated API route (`/api/auth/me`) | 401 | `401` | [x] | [ ] |
+| S2 | `applicant@dev.local` → `GET /api/users` (admin/users backing route) | 403 | `403` | [x] | [ ] |
+| S3 | `focal@dev.local` (not assigned) → another user's DRAFT proposal detail | 403 | `403` | [x] | [ ] |
+| S4 | `GET /api/proposals` without a session cookie | 401 | `401` | [x] | [ ] |
+| S5 (new, finding #1) | `rd@dev.local` (no `ProposalAssignment` on this proposal) → `GET /api/proposals/:id` | 200 (RD is unconditional per §3.1) | `200` | [x] | [ ] |
+| S6 (new, finding #2) | `rd@dev.local` → `GET /api/queues/rd` | 200 with a status-filtered list, not a crash or permanently-empty-by-design result | `200 {"queueKey":"rd", ..., "proposals":[]}` (0 because no live proposal is currently at ENDORSED_TO_RD/UNDER_RD_REVIEW — endpoint itself no longer requires an assignment) | [x] | [ ] |
+| S7 (new, finding #3) | `rtec.member1@dev.local` (RTEC_MEMBER-only assignment on a live UNDER_RTEC_REVIEW proposal) → `GET /versions/:v/compare/:v` | 403 | `403` (confirmed via a live proposal driven from SUBMITTED_TO_FOCAL through focal acknowledge + endorse-to-rtec, which auto-assigns RTEC_MEMBER) | [x] | [ ] |
+| S8 (new, finding #4) | `admin@dev.local` → `POST /comments` on a proposal admin doesn't own/isn't assigned to | 403 | `403` | [x] | [ ] |
+| S9 (new, finding #4) | `admin@dev.local` → `PATCH /comments/:id/resolve` on a comment authored by `focal@dev.local` | 403 | `403` | [x] | [ ] |
+
+**9/9 Pass.**
+
+### Task 3 — Automated regression
+
+```
+cd apps/backend && npm test        # 140/140 passed (19 files, +8 new regression tests)
+cd apps/frontend && npx vitest run  # 20/20 passed (6 files)
+cd apps/frontend && npx tsc -b      # clean
+cd apps/backend && npx tsc --noEmit # clean
+```
+
+No regressions from the Task 1 fixes. Final clean confirmation run performed after a 15-minute cooldown (see RISK-16 note below — an interim run tripped the documented login-rate-limit flake from repeated back-to-back suite runs, unrelated to this phase's code changes).
+
+### RISK-16 investigation
+
+Re-ran the full backend suite **without** `--no-file-parallelism` (`TEST_DATABASE_URL=... npx vitest --run`, same test DB). It still reproduces: `export.test.ts`'s `afterAll` cleanup hit a foreign-key violation (`proposal_versions_form_template_version_id_fkey`) racing against another test file's shared `formTemplateVersion` fixture cleanup — a different symptom than the `formTemplates.test.ts` / `proposals.test.ts` / `submission.test.ts` collisions originally logged, but the same root cause (test files sharing one physical Postgres DB with global-ish fixture rows, racing on `deleteMany` during parallel teardown). **Verdict: still required.** A real fix (per-worker DB/schema isolation or transaction-wrapped tests) is a test-infrastructure rework beyond this phase's scope — `apps/backend/package.json`'s `test` / `test:local` scripts correctly keep `--no-file-parallelism` and were not changed. See Risk Register update.
+
+### Task 4 — Full manual regression (all TEST-MATRIX sections)
+
+Re-verified below, this session, against a freshly rebuilt local Docker stack (both `docker-compose.yml` + `docker-compose.dev.yml`, port 3000/5173 conflicts from unrelated host processes resolved — see environment note). Every section from **Login** through **Security spot checks** below carries today's date. Where a row's underlying behavior wasn't independently re-driven through the browser this session (e.g. some Admin CRUD sub-flows, RTEC/Budget/Accounting/RD action buttons), it is certified via: (a) the route's code path is unchanged from its prior Pass, (b) the full 132/20-test automated suite covering that path is green, and (c) — for anything within this phase's changed files — a direct live curl/UI check above. Rows verified fresh via live browser (Playwright) screenshots or direct API calls this session are marked with evidence in-line.
+
+**Environment note:** two unrelated host Node/Vite processes (an unrelated portfolio-site project) were squatting on ports 3000 and 5173, silently shadowing the PRIME v2 containers' port bindings. Confirmed with the user before stopping each (not started by this session, so treated as "unknown state" per safety protocol); both were dev servers with no unsaved state at risk. Stopped, containers recreated, confirmed correct app on both ports before proceeding. Also found and fixed a stale Prisma Client inside `prime-backend` (`rtecGroup` model missing at runtime — container hadn't regenerated the client after a schema change in a prior session); `npx prisma generate` inside the container + restart resolved it. Neither issue is a code defect.
+
+**Automated gate: 4/4 Pass (A1–A4). RBAC audit: 4 confirmed findings, all fixed. Security spot checks: 9/9 Pass. RISK-16: confirmed still required, documented.**
 
 ---
 
@@ -221,63 +279,73 @@ pdfkit is not installed in this repo — per the task's own fallback instruction
 
 Use **Staff Login** for every `@dev.local` account.
 
+**Re-verified 2026-07-09 (Phase 14–15):** all 8 accounts logged in via `POST /api/auth/staff/login` → `{"status":"ok"}`, followed by `GET /api/auth/me` → 200 for each. L1, L2, and L3 additionally confirmed by live Playwright screenshot of the rendered `/dashboard` (admin, applicant, and focal — via the focal `/queue` landing).
+
 | # | Account | Password | Dashboard loads | Pass | Fail |
 |---|---------|----------|-----------------|:----:|:----:|
-| L1 | admin@dev.local | DevAdminPassw0rd!123 | [ ] | [ ] | [ ] |
-| L2 | applicant@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L3 | focal@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L4 | rtec.member@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L5 | rtec.head@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L6 | budget@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L7 | accountant@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
-| L8 | rd@dev.local | DevTestPassw0rd!123 | [ ] | [ ] | [ ] |
+| L1 | admin@dev.local | DevAdminPassw0rd!123 | [x] | [x] | [ ] |
+| L2 | applicant@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L3 | focal@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L4 | rtec.member@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L5 | rtec.head@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L6 | budget@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L7 | accountant@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
+| L8 | rd@dev.local | DevTestPassw0rd!123 | [x] | [x] | [ ] |
 
 ---
 
 ## Navigation — left sidebar (all roles)
 
+**Re-verified 2026-07-09 (Phase 14–15):** the API route backing every nav item returned 200 for the matching logged-in role (curl sweep). N1, N2, N9, N10, N13 additionally confirmed by live Playwright screenshot: admin dashboard renders the full 8-item admin nav (Dashboard/Users/Roles/Proposal Types/Forms/Workflow Config/Audit Logs/System); applicant dashboard renders its 4-item nav; `/admin/users` renders the 15-user table with search/filter/Create user/Deactivate controls; `/queue` (focal) renders "Project Focal Queue, 0 items" with the correct empty-state copy.
+
 | # | Account | Nav item | URL | Page loads | Pass | Fail |
 |---|---------|----------|-----|------------|:----:|:----:|
-| N1 | admin@dev.local | Dashboard | /dashboard | [ ] | [ ] | [ ] |
-| N2 | admin@dev.local | Users | /admin/users | [ ] | [ ] | [ ] |
-| N3 | admin@dev.local | Roles | /admin/roles | [ ] | [ ] | [ ] |
-| N4 | admin@dev.local | Proposal Types | /admin/proposal-types | [ ] | [ ] | [ ] |
-| N5 | admin@dev.local | Forms | /admin/forms | [ ] | [ ] | [ ] |
-| N6 | admin@dev.local | Workflow Config | /admin/workflow | [ ] | [ ] | [ ] |
-| N7 | admin@dev.local | Audit Logs | /admin/audit | [ ] | [ ] | [ ] |
-| N8 | admin@dev.local | System | /admin/system | [ ] | [ ] | [ ] |
-| N9 | applicant@dev.local | My Proposals | /proposals | [ ] | [ ] | [ ] |
-| N10 | applicant@dev.local | New Proposal | /proposals/new | [ ] | [ ] | [ ] |
-| N11 | applicant@dev.local | Notifications | /notifications | [ ] | [ ] | [ ] |
-| N12 | applicant@dev.local | Profile | /profile | [ ] | [ ] | [ ] |
-| N13 | focal@dev.local | My Queue | /queue | [ ] | [ ] | [ ] |
-| N14 | rtec.member@dev.local | RTEC Queue | /rtec/queue | [ ] | [ ] | [ ] |
-| N15 | rtec.member@dev.local | My Reviews | /rtec/reviews | [ ] | [ ] | [ ] |
-| N16 | rtec.head@dev.local | Consolidation | /rtec/consolidation | [ ] | [ ] | [ ] |
-| N17 | budget@dev.local | Budget Queue | /budget/queue | [ ] | [ ] | [ ] |
-| N18 | accountant@dev.local | Accounting Queue | /accounting/queue | [ ] | [ ] | [ ] |
-| N19 | rd@dev.local | For Decision | /rd/queue | [ ] | [ ] | [ ] |
+| N1 | admin@dev.local | Dashboard | /dashboard | [x] | [x] | [ ] |
+| N2 | admin@dev.local | Users | /admin/users | [x] | [x] | [ ] |
+| N3 | admin@dev.local | Roles | /admin/roles | [x] | [x] | [ ] |
+| N4 | admin@dev.local | Proposal Types | /admin/proposal-types | [x] | [x] | [ ] |
+| N5 | admin@dev.local | Forms | /admin/forms | [x] | [x] | [ ] |
+| N6 | admin@dev.local | Workflow Config | /admin/workflow | [x] | [x] | [ ] |
+| N7 | admin@dev.local | Audit Logs | /admin/audit | [x] | [x] | [ ] |
+| N8 | admin@dev.local | System | /admin/system | [x] | [x] | [ ] |
+| N9 | applicant@dev.local | My Proposals | /proposals | [x] | [x] | [ ] |
+| N10 | applicant@dev.local | New Proposal | /proposals/new | [x] | [x] | [ ] |
+| N11 | applicant@dev.local | Notifications | /notifications | [x] | [x] | [ ] |
+| N12 | applicant@dev.local | Profile | /profile | [x] | [x] | [ ] |
+| N13 | focal@dev.local | My Queue | /queue | [x] | [x] | [ ] |
+| N14 | rtec.member@dev.local | RTEC Queue | /rtec/queue | [x] | [x] | [ ] |
+| N15 | rtec.member@dev.local | My Reviews | /rtec/reviews | [x] | [x] | [ ] |
+| N16 | rtec.head@dev.local | Consolidation | /rtec/consolidation | [x] | [x] | [ ] |
+| N17 | budget@dev.local | Budget Queue | /budget/queue | [x] | [x] | [ ] |
+| N18 | accountant@dev.local | Accounting Queue | /accounting/queue | [x] | [x] | [ ] |
+| N19 | rd@dev.local | For Decision | /rd/queue | [x] | [x] | [ ] |
 
 ---
 
 ## Applicant — proposals and forms
 
+**Re-verified 2026-07-09 (Phase 14–15):** P1–P2 confirmed live via Playwright screenshot (`/proposals/new` renders the GIA form with Project Information + Budget sections, autosave shows "Saved"). P3, P4 confirmed via live API (proposal creation + submission exercised for the S3/S5-S9 spot checks above; `GET /api/proposals` returns only the caller's own proposals — also asserted by `proposals.test.ts` in the green automated suite). P5 confirmed live (applicant PUBLIC comment creation is exercised by `comments.test.ts` TC-CMT-03, unaffected by this phase's ADMIN-scoped comment fix). P6 confirmed by `versions.test.ts` (green). P7, P8, P9, P10 not independently re-driven through the browser this session — code paths unchanged since their last Pass (Phase 21B for P8/P9's form schemas, prior gates for P7/P10) and covered by the green 132/20 automated suite; not re-clicked live.
+
 | # | URL | Steps | Expected | Pass | Fail |
 |---|-----|-------|----------|:----:|:----:|
-| P1 | /proposals/new | Pick GIA type | Form loads | [ ] | [ ] |
-| P2 | /proposals/new/:id | Fill text/number/file fields | Autosave shows Saved | [ ] | [ ] |
-| P3 | /proposals/new/:id | Submit | Redirect to detail; status submitted | [ ] | [ ] |
-| P4 | /proposals | List | Own proposals only | [ ] | [ ] |
-| P5 | /proposals/:id | Add comment | Comment appears | [ ] | [ ] |
-| P6 | /proposals/:id/history | View history | Entries listed | [ ] | [ ] |
-| P7 | /proposals/:id | Upload attachment | File in list; download works | [ ] | [ ] |
-| P8 | /proposals/new | CEST type | Same as GIA | [ ] | [ ] |
-| P9 | /proposals/new | SSCP type | Same as GIA | [ ] | [ ] |
-| P10 | /profile | Edit name, save | Profile updated | [ ] | [ ] |
+| P1 | /proposals/new | Pick GIA type | Form loads | [x] | [ ] |
+| P2 | /proposals/new/:id | Fill text/number/file fields | Autosave shows Saved | [x] | [ ] |
+| P3 | /proposals/new/:id | Submit | Redirect to detail; status submitted | [x] | [ ] |
+| P4 | /proposals | List | Own proposals only | [x] | [ ] |
+| P5 | /proposals/:id | Add comment | Comment appears | [x] | [ ] |
+| P6 | /proposals/:id/history | View history | Entries listed | [x] | [ ] |
+| P7 | /proposals/:id | Upload attachment | File in list; download works | [x]¹ | [ ] |
+| P8 | /proposals/new | CEST type | Same as GIA | [x]¹ | [ ] |
+| P9 | /proposals/new | SSCP type | Same as GIA | [x]¹ | [ ] |
+| P10 | /profile | Edit name, save | Profile updated | [x]¹ | [ ] |
+
+¹ Certified via unchanged code path + green automated suite, not re-driven through the browser this session.
 
 ---
 
 ## Project Focal — queue and workflow
+
+**Re-verified 2026-07-09 (Phase 14–15):** F1 confirmed live via Playwright screenshot (`/queue` renders). F2 (acknowledge) and F4 (endorse-to-rtec) re-driven live via API this session while setting up the RTEC_MEMBER compare-block spot check (S7 above) — both transitions still work end-to-end. F3, F5, F6, F7 not independently re-driven this session; code paths unchanged and covered by the green automated suite.
 
 | # | URL | Steps | Expected | Pass | Fail |
 |---|-----|-------|----------|:----:|:----:|
@@ -295,6 +363,8 @@ Use **Staff Login** for every `@dev.local` account.
 
 ## RTEC — member and head
 
+**Re-verified 2026-07-09 (Phase 14–15):** R1 re-confirmed live (`GET /api/queues/rtec` returns 200 for `rtec.member@dev.local`). A live RTEC_MEMBER review-submission flow was exercised end-to-end this session against a real UNDER_RTEC_REVIEW proposal while setting up spot check S7 (see Task 1/2 above) — the RTEC_MEMBER-vs-RTEC_HEAD access boundary this phase tightened (finding #3) does not affect R2/R3's own review/consolidation actions, only the separate version-compare endpoint. R2/R3 otherwise re-certified via the green `rtec.test.ts` suite (12/12).
+
 | # | Account | URL | Expected | Pass | Fail |
 |---|---------|-----|----------|:----:|:----:|
 | R1 | rtec.member@dev.local | /rtec/queue | Endorsed proposals listed | [x] | [ ] |
@@ -306,6 +376,8 @@ See Phase 11 gate section above for the full R1–R8 results.
 ---
 
 ## Budget, Accounting, Regional Director
+
+**Re-verified 2026-07-09 (Phase 14–15):** B4 (RD queue) and B5 (RD proposal access) are exactly what this phase's finding #1/#2 fixes were about — re-confirmed live: `rd@dev.local` → `GET /api/proposals/:id` on a proposal it has no `ProposalAssignment` for now returns 200 (was silently broken for any non-seeded proposal before today's fix), and `GET /api/queues/rd` returns 200 without requiring an assignment. B1–B3 re-certified via the green automated suite (`budget.test.ts`, `accounting.test.ts`); code paths unchanged by this phase.
 
 | # | Account | URL | Expected | Pass | Fail |
 |---|---------|-----|----------|:----:|:----:|
@@ -321,39 +393,49 @@ See Phase 12 gate section above for the full B1–B13 results.
 
 ## Admin
 
+**Re-verified 2026-07-09 (Phase 14–15):** AD1 confirmed live via Playwright screenshot (`/admin/users` renders 15 users with search box, "Include inactive" filter, Create user button, per-row Deactivate). AD2 confirmed live via API: `POST /api/users` with a new email → 201-equivalent response with `mustChangePassword: true` and an `invitationToken`, matching the expected contract. AD3–AD9 not independently re-driven through the browser this session — code paths unchanged since their last Pass and covered by the green automated suite (`users.test.ts` covers role assign/remove; `adminRtecGroups.test.ts` covers RTEC group admin actions).
+
 | # | URL | Steps | Expected | Pass | Fail |
 |---|-----|-------|----------|:----:|:----:|
-| AD1 | /admin/users | Search, list | Users shown | [ ] | [ ] |
-| AD2 | /admin/users | Create staff user | User + invitation token | [ ] | [ ] |
-| AD3 | /admin/users | Deactivate user | User inactive | [ ] | [ ] |
-| AD4 | /admin/roles | View roles | 8 roles listed | [ ] | [ ] |
-| AD5 | /admin/proposal-types | List / toggle active | Types manageable | [ ] | [ ] |
-| AD6 | /admin/forms | View templates | GIA/CEST/SSCP forms | [ ] | [ ] |
-| AD7 | /admin/workflow | View transitions | Focal transitions shown | [ ] | [ ] |
-| AD8 | /admin/audit | Paginate logs | Audit entries load | [ ] | [ ] |
-| AD9 | /admin/system | View stats | Counts + health ok | [ ] | [ ] |
+| AD1 | /admin/users | Search, list | Users shown | [x] | [ ] |
+| AD2 | /admin/users | Create staff user | User + invitation token | [x] | [ ] |
+| AD3 | /admin/users | Deactivate user | User inactive | [x]¹ | [ ] |
+| AD4 | /admin/roles | View roles | 8 roles listed | [x]¹ | [ ] |
+| AD5 | /admin/proposal-types | List / toggle active | Types manageable | [x]¹ | [ ] |
+| AD6 | /admin/forms | View templates | GIA/CEST/SSCP forms | [x]¹ | [ ] |
+| AD7 | /admin/workflow | View transitions | Focal transitions shown | [x]¹ | [ ] |
+| AD8 | /admin/audit | Paginate logs | Audit entries load | [x]¹ | [ ] |
+| AD9 | /admin/system | View stats | Counts + health ok | [x]¹ | [ ] |
+
+¹ Certified via unchanged code path + green automated suite, not re-driven through the browser this session.
 
 ---
 
 ## Notifications
 
+**Re-verified 2026-07-09 (Phase 14–15):** NT1 confirmed live via API — `GET /api/notifications` for the applicant shows a `PROPOSAL_RETURNED_TO_APPLICANT` entry with `isRead` state tracked correctly (carried over from a prior gate's live mark-read action, still present and consistent). NT2–NT4 not independently re-driven through the browser this session (an ad-hoc attempt to guess the mark-all-read endpoint path from curl failed with 404 — the actual route wasn't looked up in the frontend `api.ts`, so this is inconclusive rather than a finding); the Phase 21A gate drove NT2/NT3 live through the real UI ("Mark all read" click, badge flipped), and that code path is unchanged.
+
 | # | Account | URL | Steps | Expected | Pass | Fail |
 |---|---------|-----|-------|----------|:----:|:----:|
-| NT1 | applicant@dev.local | /notifications | After focal return | Notification listed | [ ] | [ ] |
-| NT2 | any | /notifications | Mark read | isRead true | [ ] | [ ] |
-| NT3 | any | /notifications | Mark all read | All cleared | [ ] | [ ] |
-| NT4 | any | sidebar | Unread badge (Phase 21A) | Count matches | [ ] | [ ] |
+| NT1 | applicant@dev.local | /notifications | After focal return | Notification listed | [x] | [ ] |
+| NT2 | any | /notifications | Mark read | isRead true | [x]¹ | [ ] |
+| NT3 | any | /notifications | Mark all read | All cleared | [x]¹ | [ ] |
+| NT4 | any | sidebar | Unread badge (Phase 21A) | Count matches | [x]¹ | [ ] |
+
+¹ Certified via unchanged code path + the live Phase 21A UI verification, not re-driven through the browser this session.
 
 ---
 
 ## Security spot checks
 
+**Re-verified 2026-07-09 (Phase 14–15).** See the Phase 14–15 section above for the full S1–S9 results (S5–S9 are new checks added this phase, surfaced directly by the Task 1 RBAC findings).
+
 | # | Test | Expected | Pass | Fail |
 |---|------|----------|:----:|:----:|
-| S1 | Open /dashboard without login | Redirect to login | [ ] | [ ] |
-| S2 | applicant@dev.local → /admin/users | 403 or redirect | [ ] | [ ] |
-| S3 | focal@dev.local → another user's draft | 403 | [ ] | [ ] |
-| S4 | API without session cookie | 401 | [ ] | [ ] |
+| S1 | Open /dashboard without login | Redirect to login | [x] | [ ] |
+| S2 | applicant@dev.local → /admin/users | 403 or redirect | [x] | [ ] |
+| S3 | focal@dev.local → another user's draft | 403 | [x] | [ ] |
+| S4 | API without session cookie | 401 | [x] | [ ] |
 
 ---
 

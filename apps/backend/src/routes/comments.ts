@@ -29,6 +29,21 @@ async function canAccessProposal(
   return { allowed: isOwner || isAssigned, proposal };
 }
 
+// Roles-and-Permissions §3.3 marks every "Add"/"Resolve"/"Reopen" comment
+// action ❌ for ADMIN (§5.8: Admin must not alter proposal content without an
+// explicit content-management grant). canAccessProposal's unconditional ADMIN
+// bypass is fine for read (View official workflow comments: ADMIN ✅), but
+// write actions must require the caller to be the proposal owner or an
+// actually-assigned staff member — not merely ADMIN.
+async function isOwnerOrAssigned(proposalId: string, userId: string): Promise<boolean> {
+  const proposal = await prisma.proposal.findUnique({
+    where: { id: proposalId },
+    include: { assignments: { where: { userId, isActive: true } } },
+  });
+  if (!proposal) return false;
+  return proposal.applicantUserId === userId || proposal.assignments.length > 0;
+}
+
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
 const idParamSchema = z.object({ id: z.string().uuid() });
@@ -67,6 +82,9 @@ export default async function commentsRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: "Not Found", statusCode: 404 });
       }
       if (!allowed) {
+        return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
+      }
+      if (currentUser.roles.includes("ADMIN") && !(await isOwnerOrAssigned(params.id, currentUser.id))) {
         return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
       }
 
@@ -206,10 +224,10 @@ export default async function commentsRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: "Not Found", statusCode: 404 });
       }
 
-      // Only comment author or ADMIN may resolve
+      // Only the comment's author may resolve — §3.3 marks ADMIN ❌ for
+      // Resolve comment (§5.8: no unlogged content alteration by Admin).
       const isAuthor = comment.authorUserId === currentUser.id;
-      const isAdmin = currentUser.roles.includes("ADMIN");
-      if (!isAuthor && !isAdmin) {
+      if (!isAuthor) {
         return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
       }
 
@@ -265,10 +283,10 @@ export default async function commentsRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: "Not Found", statusCode: 404 });
       }
 
-      // Only comment author or ADMIN may reopen
+      // Only the comment's author may reopen — §3.3 marks ADMIN ❌ for
+      // Reopen comment (§5.8: no unlogged content alteration by Admin).
       const isAuthor = comment.authorUserId === currentUser.id;
-      const isAdmin = currentUser.roles.includes("ADMIN");
-      if (!isAuthor && !isAdmin) {
+      if (!isAuthor) {
         return reply.status(403).send({ error: "Forbidden", statusCode: 403 });
       }
 
