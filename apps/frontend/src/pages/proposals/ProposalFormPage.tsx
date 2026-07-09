@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   api,
   phase9Api,
+  type FormField,
   type FormSection,
   type FormTemplateVersionResponse,
   type ProposalTypeSummary,
@@ -13,6 +14,37 @@ type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
 interface FieldValues {
   [formFieldId: string]: string;
+}
+
+interface FieldErrors {
+  [formFieldId: string]: boolean;
+}
+
+interface TableColumn {
+  key: string;
+  label: string;
+}
+
+type TableRow = Record<string, string>;
+
+function parseTableColumns(validationRules: string | null): TableColumn[] {
+  if (!validationRules) return [];
+  try {
+    const parsed = JSON.parse(validationRules) as { columns?: TableColumn[] };
+    return parsed.columns ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function parseTableRows(value: string | undefined): TableRow[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value) as TableRow[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 interface CreatedProposal {
@@ -30,6 +62,7 @@ export default function ProposalFormPage() {
   const [proposalStatus, setProposalStatus] = useState<string>("DRAFT");
   const [sections, setSections] = useState<FormSection[]>([]);
   const [fieldValues, setFieldValues] = useState<FieldValues>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +156,14 @@ export default function ProposalFormPage() {
     const nextValues = { ...fieldValues, [formFieldId]: value };
     setFieldValues(nextValues);
 
+    if (fieldErrors[formFieldId]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[formFieldId];
+        return next;
+      });
+    }
+
     if (
       fieldLabel?.toLowerCase().includes("project title") &&
       proposalId &&
@@ -167,9 +208,65 @@ export default function ProposalFormPage() {
     }
   }
 
+  function handleTableRowChange(field: FormField, rowIndex: number, columnKey: string, value: string) {
+    const rows = parseTableRows(fieldValues[field.id]);
+    const nextRows = rows.map((row, i) => (i === rowIndex ? { ...row, [columnKey]: value } : row));
+    handleFieldChange(field.id, JSON.stringify(nextRows), field.label);
+  }
+
+  function handleAddTableRow(field: FormField) {
+    const rows = parseTableRows(fieldValues[field.id]);
+    const columns = parseTableColumns(field.validationRules);
+    const blankRow: TableRow = Object.fromEntries(columns.map((c) => [c.key, ""]));
+    handleFieldChange(field.id, JSON.stringify([...rows, blankRow]), field.label);
+  }
+
+  function handleRemoveTableRow(field: FormField, rowIndex: number) {
+    const rows = parseTableRows(fieldValues[field.id]);
+    if (rows.length <= 1) return;
+    const nextRows = rows.filter((_, i) => i !== rowIndex);
+    handleFieldChange(field.id, JSON.stringify(nextRows), field.label);
+  }
+
+  function isFieldEmpty(field: FormField): boolean {
+    const value = fieldValues[field.id];
+    if (field.inputType === "TABLE") {
+      const rows = parseTableRows(value);
+      return !rows.some((row) => Object.values(row).some((cell) => cell.trim() !== ""));
+    }
+    return !value || value.trim() === "";
+  }
+
+  function validateRequiredFields(): string[] {
+    const missingFieldIds: string[] = [];
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.isRequired && isFieldEmpty(field)) {
+          missingFieldIds.push(field.id);
+        }
+      }
+    }
+    return missingFieldIds;
+  }
+
   async function handleSubmitProposal() {
     if (!proposalId) return;
     setSubmitError(null);
+
+    const missingFieldIds = validateRequiredFields();
+    if (missingFieldIds.length > 0) {
+      const errors: FieldErrors = {};
+      missingFieldIds.forEach((id) => {
+        errors[id] = true;
+      });
+      setFieldErrors(errors);
+      setShowSubmitConfirm(false);
+      setSubmitError("Please fill in all required fields before submitting.");
+      const firstField = document.getElementById(missingFieldIds[0]);
+      firstField?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await phase9Api.submitProposal(proposalId);
@@ -403,15 +500,112 @@ export default function ProposalFormPage() {
                 />
               )}
 
-              {field.inputType === "TABLE" && (
-                <p style={{ margin: 0, color: "#6b7280", fontSize: "0.875rem" }}>
-                  Table field — use file upload
+              {field.inputType === "TABLE" && (() => {
+                const columns = parseTableColumns(field.validationRules);
+                const rows = parseTableRows(fieldValues[field.id]);
+                const displayRows = rows.length > 0 ? rows : [Object.fromEntries(columns.map((c) => [c.key, ""]))];
+                return (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+                      <thead>
+                        <tr>
+                          {columns.map((col) => (
+                            <th
+                              key={col.key}
+                              style={{
+                                textAlign: "left",
+                                padding: "0.5rem",
+                                borderBottom: "2px solid #e5e7eb",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                          <th style={{ borderBottom: "2px solid #e5e7eb", padding: "0.5rem" }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayRows.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {columns.map((col) => (
+                              <td key={col.key} style={{ padding: "0.5rem", borderBottom: "1px solid #f3f4f6" }}>
+                                <input
+                                  type="text"
+                                  aria-label={`${col.label}, row ${rowIndex + 1}`}
+                                  value={row[col.key] ?? ""}
+                                  onChange={(e) =>
+                                    handleTableRowChange(field, rowIndex, col.key, e.target.value)
+                                  }
+                                  style={inputStyle}
+                                />
+                              </td>
+                            ))}
+                            <td style={{ padding: "0.5rem", borderBottom: "1px solid #f3f4f6" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTableRow(field, rowIndex)}
+                                disabled={displayRows.length <= 1}
+                                aria-label={`Remove row ${rowIndex + 1}`}
+                                style={{
+                                  border: "1px solid #d1d5db",
+                                  borderRadius: "0.375rem",
+                                  backgroundColor: "#fff",
+                                  cursor: displayRows.length <= 1 ? "not-allowed" : "pointer",
+                                  opacity: displayRows.length <= 1 ? 0.5 : 1,
+                                  padding: "0.25rem 0.5rem",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <button
+                      type="button"
+                      onClick={() => handleAddTableRow(field)}
+                      aria-label={`Add row to ${field.label}`}
+                      style={{
+                        marginTop: "0.5rem",
+                        padding: "0.375rem 0.75rem",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "0.375rem",
+                        backgroundColor: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.8125rem",
+                      }}
+                    >
+                      + Add Row
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {fieldErrors[field.id] && (
+                <p role="alert" style={{ color: "#dc2626", fontSize: "0.75rem", marginTop: "0.25rem" }}>
+                  This field is required.
                 </p>
               )}
             </div>
           ))}
         </fieldset>
       ))}
+
+      {submitError && (
+        <p
+          role="alert"
+          style={{
+            color: "#dc2626",
+            fontSize: "0.875rem",
+            marginBottom: "0.75rem",
+            fontWeight: 500,
+          }}
+        >
+          {submitError}
+        </p>
+      )}
 
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
         <button
@@ -473,12 +667,6 @@ export default function ProposalFormPage() {
           </button>
         )}
       </div>
-
-      {submitError && (
-        <p role="alert" style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.75rem" }}>
-          {submitError}
-        </p>
-      )}
 
       {/* Submit confirmation dialog */}
       {showSubmitConfirm && (

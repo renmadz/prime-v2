@@ -177,6 +177,171 @@ async function main() {
     },
   ];
 
+  // FORM-001 (DOST-GIA Form 1 — Program Concept Proposal) applies to GIA, CEST,
+  // and SSCP per docs/forms/FORM-INVENTORY.md ("Program mapping: GIA, CEST, and
+  // SSCP generally use the same forms"). Each program gets its own FormTemplate /
+  // FormTemplateVersion / FormSection / FormField rows, all built from this shape.
+  async function buildForm001Sections(formTemplateVersionId: string, programCode: string) {
+    const section1 = await prisma.formSection.create({
+      data: {
+        formTemplateVersionId,
+        sectionCode: `${programCode}-S1`,
+        title: "Concept Program Proposal Summary Information",
+        displayOrder: 1,
+        isRepeating: false,
+        isRequired: true,
+      },
+    });
+    await prisma.formField.createMany({
+      data: [
+        {
+          formSectionId: section1.id,
+          fieldCode: `${programCode}-F1`,
+          label: "Program Title",
+          inputType: "TEXT",
+          isRequired: true,
+          validationRules: JSON.stringify({ maxLength: 300 }),
+          displayOrder: 1,
+        },
+        {
+          formSectionId: section1.id,
+          fieldCode: `${programCode}-F2`,
+          label: "Program Duration (months)",
+          inputType: "NUMBER",
+          isRequired: true,
+          validationRules: JSON.stringify({ min: 1 }),
+          displayOrder: 2,
+        },
+        {
+          formSectionId: section1.id,
+          fieldCode: `${programCode}-F3`,
+          label: "Estimated Budgetary Requirement",
+          inputType: "CURRENCY",
+          isRequired: true,
+          validationRules: JSON.stringify({ min: 0, currency: "PHP" }),
+          displayOrder: 3,
+        },
+        {
+          formSectionId: section1.id,
+          fieldCode: `${programCode}-F4`,
+          label: "Principal Question to be Addressed",
+          inputType: "TEXTAREA",
+          isRequired: true,
+          validationRules: JSON.stringify({ maxWords: 100 }),
+          displayOrder: 4,
+        },
+        {
+          formSectionId: section1.id,
+          fieldCode: `${programCode}-F5`,
+          label: "Program Leader",
+          inputType: "TEXT",
+          isRequired: true,
+          validationRules: JSON.stringify({ maxLength: 200 }),
+          displayOrder: 5,
+        },
+      ],
+    });
+
+    const section2 = await prisma.formSection.create({
+      data: {
+        formTemplateVersionId,
+        sectionCode: `${programCode}-S2`,
+        title: "Program Proposal — Component Projects",
+        displayOrder: 2,
+        isRepeating: true,
+        isRequired: true,
+      },
+    });
+    await prisma.formField.create({
+      data: {
+        formSectionId: section2.id,
+        fieldCode: `${programCode}-F6`,
+        label: "Component Projects",
+        inputType: "TABLE",
+        isRequired: true,
+        validationRules: JSON.stringify({
+          columns: [
+            { key: "projectTitle", label: "Title of Component Project" },
+            { key: "projectLeader", label: "Project Leader / Designation & Institution" },
+            { key: "budgetAmount", label: "Estimated Budgetary Requirement" },
+          ],
+        }),
+        displayOrder: 1,
+      },
+    });
+
+    const section3 = await prisma.formSection.create({
+      data: {
+        formTemplateVersionId,
+        sectionCode: `${programCode}-S3`,
+        title: "Program Summary",
+        displayOrder: 3,
+        isRepeating: false,
+        isRequired: true,
+      },
+    });
+    await prisma.formField.create({
+      data: {
+        formSectionId: section3.id,
+        fieldCode: `${programCode}-F7`,
+        label: "Program Summary",
+        inputType: "TEXTAREA",
+        isRequired: true,
+        validationRules: JSON.stringify({ maxWords: 1500 }),
+        displayOrder: 1,
+      },
+    });
+
+    const section4 = await prisma.formSection.create({
+      data: {
+        formTemplateVersionId,
+        sectionCode: `${programCode}-S4`,
+        title: "Submitted By (Program Leader)",
+        displayOrder: 4,
+        isRepeating: false,
+        isRequired: true,
+      },
+    });
+    await prisma.formField.createMany({
+      data: [
+        {
+          formSectionId: section4.id,
+          fieldCode: `${programCode}-F8`,
+          label: "Signature",
+          inputType: "FILE",
+          isRequired: true,
+          displayOrder: 1,
+        },
+        {
+          formSectionId: section4.id,
+          fieldCode: `${programCode}-F9`,
+          label: "Printed Name",
+          inputType: "TEXT",
+          isRequired: true,
+          validationRules: JSON.stringify({ maxLength: 200 }),
+          displayOrder: 2,
+        },
+        {
+          formSectionId: section4.id,
+          fieldCode: `${programCode}-F10`,
+          label: "Designation / Title",
+          inputType: "TEXT",
+          isRequired: true,
+          validationRules: JSON.stringify({ maxLength: 200 }),
+          displayOrder: 3,
+        },
+        {
+          formSectionId: section4.id,
+          fieldCode: `${programCode}-F11`,
+          label: "Date",
+          inputType: "DATE",
+          isRequired: true,
+          displayOrder: 4,
+        },
+      ],
+    });
+  }
+
   for (const def of formDefs) {
     const program = seededPrograms[def.programCode];
 
@@ -190,6 +355,7 @@ async function main() {
     // Check if a current version already exists
     const existingVersion = await prisma.formTemplateVersion.findFirst({
       where: { formTemplateId: formTemplate.id, isCurrent: true },
+      include: { sections: { include: { fields: true } } },
     });
 
     if (!existingVersion) {
@@ -202,71 +368,34 @@ async function main() {
           publishedAt: new Date(),
         },
       });
-
-      // Section 1: Project Information
-      const section1 = await prisma.formSection.create({
-        data: {
-          formTemplateVersionId: formVersion.id,
-          sectionCode: `${def.programCode}-S1`,
-          title: "Project Information",
-          displayOrder: 1,
-          isRepeating: false,
-          isRequired: true,
-        },
+      await buildForm001Sections(formVersion.id, def.programCode);
+    } else if (existingVersion.sections.length < 4) {
+      // Old 4-field stub (2 sections) detected — replace in place so the
+      // FormTemplateVersion id (and any FK from ProposalVersion) stays valid.
+      const staleSectionIds = existingVersion.sections.map((s) => s.id);
+      const staleFieldIds = existingVersion.sections.flatMap((s) =>
+        s.fields.map((f) => f.id),
+      );
+      // Clear dependent rows saved against the stub fields/sections (dev draft
+      // data from manual QA) before the FK-constrained delete below.
+      await prisma.proposalFieldValue.deleteMany({ where: { formFieldId: { in: staleFieldIds } } });
+      await prisma.proposalComment.updateMany({
+        where: { targetFieldId: { in: staleFieldIds } },
+        data: { targetFieldId: null },
       });
-      await prisma.formField.createMany({
-        data: [
-          {
-            formSectionId: section1.id,
-            fieldCode: `${def.programCode}-F1`,
-            label: "Project Title",
-            inputType: "TEXT",
-            isRequired: true,
-            displayOrder: 1,
-          },
-          {
-            formSectionId: section1.id,
-            fieldCode: `${def.programCode}-F2`,
-            label: "Project Description",
-            inputType: "TEXTAREA",
-            isRequired: true,
-            displayOrder: 2,
-          },
-        ],
+      await prisma.proposalComment.updateMany({
+        where: { targetSectionId: { in: staleSectionIds } },
+        data: { targetSectionId: null },
       });
-
-      // Section 2: Budget
-      const section2 = await prisma.formSection.create({
-        data: {
-          formTemplateVersionId: formVersion.id,
-          sectionCode: `${def.programCode}-S2`,
-          title: "Budget",
-          displayOrder: 2,
-          isRepeating: false,
-          isRequired: true,
-        },
+      await prisma.rtecReviewItem.updateMany({
+        where: { formSectionId: { in: staleSectionIds } },
+        data: { formSectionId: null },
       });
-      await prisma.formField.createMany({
-        data: [
-          {
-            formSectionId: section2.id,
-            fieldCode: `${def.programCode}-F3`,
-            label: "Total Budget Amount",
-            inputType: "NUMBER",
-            isRequired: true,
-            displayOrder: 1,
-          },
-          {
-            formSectionId: section2.id,
-            fieldCode: `${def.programCode}-F4`,
-            label: "Supporting Documents",
-            inputType: "FILE",
-            isRequired: true,
-            displayOrder: 2,
-          },
-        ],
-      });
+      await prisma.formField.deleteMany({ where: { formSectionId: { in: staleSectionIds } } });
+      await prisma.formSection.deleteMany({ where: { id: { in: staleSectionIds } } });
+      await buildForm001Sections(existingVersion.id, def.programCode);
     }
+    // else: already migrated to the full FORM-001 shape — idempotent no-op.
 
     // ProposalType — link to program and formTemplate
     await prisma.proposalType.upsert({
